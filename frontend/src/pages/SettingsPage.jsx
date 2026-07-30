@@ -86,7 +86,7 @@ export default function SettingsPage() {
   )
 
   return (
-    <div className="anim-in" style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'start' }}>
+    <div className="anim-in settings-layout" style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'start' }}>
 
       {/* ── Tab Navigation ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

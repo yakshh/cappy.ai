@@ -84,7 +84,7 @@ export default function QuizPage() {
   const next = () => { setCurrentIndex((i) => Math.min(questions.length - 1, i + 1)); setFlipped(false) }
 
   return (
-    <div className="anim-in" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, height: 'calc(100vh - 128px)' }}>
+    <div className="anim-in responsive-workspace" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, height: 'calc(100vh - 128px)' }}>
 
       {/* ── Left Config Panel ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', height: '100%' }}>

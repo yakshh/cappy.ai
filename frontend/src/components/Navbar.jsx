@@ -41,7 +41,7 @@ export default function Navbar() {
           <GraduationCap size={19} style={{ color: '#fff' }} />
         </div>
 
-        <div>
+        <div className="app-brand-copy">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 16, color: 'var(--text)', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
               cappy<span style={{ color: 'var(--accent)' }}>.ai</span>
@@ -54,14 +54,14 @@ export default function Navbar() {
       </NavLink>
 
       {/* Center: Top Navigation Row */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <nav className="app-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => {
           const active = pathname === to || (to !== '/dashboard' && pathname.startsWith(to))
           return (
             <NavLink key={to} to={to} style={{ textDecoration: 'none' }}>
               <div className={`nav-top-item ${active ? 'active' : ''}`}>
                 <Icon size={14} className="icon" />
-                <span>{label}</span>
+                <span className="app-nav-label">{label}</span>
               </div>
             </NavLink>
           )
@@ -118,7 +118,7 @@ export default function Navbar() {
                 border: '1.5px solid var(--surface)',
               }} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="app-user-copy" style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{firstName}</span>
               <span style={{ fontSize: 10, color: 'var(--text3)' }}>{user?.email?.split('@')[0] || 'Active'}</span>
             </div>

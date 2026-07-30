@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
+import { useAuth } from './context/AuthContext'
 
 // Pages
 import LoginPage     from './pages/LoginPage'
@@ -27,12 +28,18 @@ function AppLayout() {
   )
 }
 
+function HomeRedirect() {
+  const { user } = useAuth()
+  return <Navigate to={user ? '/dashboard' : '/login'} replace />
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<HomeRedirect />} />
             {/* Public routes */}
             <Route path="/login"    element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -56,7 +63,7 @@ export default function App() {
             </Route>
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<HomeRedirect />} />
           </Routes>
         </BrowserRouter>
 
