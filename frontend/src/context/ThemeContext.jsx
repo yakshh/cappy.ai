@@ -7,6 +7,10 @@ export const COLOR_THEMES = [
   { id: 'blastic-blue', name: 'Blastic Blue', description: 'Focused blue with a cool midnight canvas', accent: '#4B8DF8', accentHi: '#75ADFF' },
   { id: 'planatic-pink', name: 'Planatic Pink', description: 'Confident pink with a soft berry glow', accent: '#E66AA6', accentHi: '#F28CC0' },
   { id: 'gardenic-green', name: 'Gardenic Green', description: 'Calm green inspired by a quiet study garden', accent: '#4CAF78', accentHi: '#72D39A' },
+  { id: 'prismatic-purple', name: 'Prismatic Purple', description: 'Creative violet with a polished evening glow', accent: '#9B7AF5', accentHi: '#B69BFF' },
+  { id: 'orbitic-orange', name: 'Orbitic Orange', description: 'Energetic amber for bright study sessions', accent: '#E8893A', accentHi: '#FFAD62' },
+  { id: 'graphitic-grey', name: 'Graphitic Grey', description: 'Minimal graphite with a precise neutral finish', accent: '#8A96A8', accentHi: '#AEB8C7' },
+  { id: 'brewic-brown', name: 'Brewic Brown', description: 'Grounded coffee tones for a cozy workspace', accent: '#B8794F', accentHi: '#D49A6E' },
 ]
 
 export function ThemeProvider({ children }) {
