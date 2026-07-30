@@ -45,7 +45,6 @@ cappy.ai/
 │       ├── components/ # Navbar, DocumentCard, FileUpload, Category selector
 │       ├── pages/      # Dashboard, Summary, Quiz, SamplePaper, Search, Settings
 │       └── services/   # Axios API client modules
-└── start.bat           # Server launch script
 ```
 
 ---
@@ -94,11 +93,6 @@ cappy.ai/
    cd ../frontend
    npm install
    npm run dev
-   ```
-
-4. **One-Click Launch (Windows)**:
-   ```cmd
-   .\start.bat
    ```
 
 ---
