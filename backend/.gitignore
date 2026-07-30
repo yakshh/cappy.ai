@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+uploads/
+chroma_db/
+cappy.db
+*.egg-info/
+dist/
+.pytest_cache/

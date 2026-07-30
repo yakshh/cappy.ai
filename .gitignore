@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+backend/venv/
+backend/__pycache__/
+*.pyc
+*.pyo
+
+# Local Environment & Secrets
+.env
+backend/.env
+
+# Local Database & Storage
+backend/uploads/
+backend/chroma_db/
+backend/cappy.db
+*.db
+
+# Build Artifacts
+frontend/dist/
+dist/
+
+# IDE & System
+.vscode/
+.DS_Store
+Thumbs.db
