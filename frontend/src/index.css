@@ -421,9 +421,9 @@ body {
 @media (max-width: 900px) {
   .app-header { padding: 0 14px; gap: 10px; }
   .app-brand-copy { display: none; }
-  .app-nav-links { flex: 1; justify-content: center; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .app-nav-links { flex: 1; justify-content: flex-start; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .app-nav-links::-webkit-scrollbar { display: none; }
-  .app-nav-label { display: none; }
+  .app-nav-label { display: inline; font-size: 10px; }
   .app-user-copy { display: none !important; }
   .app-main { padding: 18px 14px 32px; }
   .responsive-workspace { display: flex !important; flex-direction: column; height: auto !important; min-height: 0; }
@@ -439,7 +439,7 @@ body {
   :root { --header-h: 54px; }
   .app-header { padding: 0 10px; }
   .app-main { padding: 14px 10px 26px; }
-  .nav-top-item { padding: 6px 8px; }
+  .nav-top-item { padding: 6px 7px; gap: 4px; }
   .btn { padding-left: 10px; padding-right: 10px; }
   .card { border-radius: 10px; }
   .responsive-workspace .card { padding-left: 14px !important; padding-right: 14px !important; }

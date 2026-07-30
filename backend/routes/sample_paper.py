@@ -66,14 +66,21 @@ def create_sample_paper(
         raise HTTPException(status_code=404, detail="No content found in selected documents.")
 
     combined_text = "\n\n".join(c["text"] for c in chunks)
-    raw_json = generate_sample_paper(
-        text=combined_text,
-        university_name=payload.university_name or "UNIVERSITY EXAMINATION",
-        subject_code=payload.subject_code,
-        subject_name=payload.subject_name,
-        exam_term=payload.exam_term,
-        total_marks=payload.total_marks,
-    )
+    try:
+        raw_json = generate_sample_paper(
+            text=combined_text,
+            university_name=payload.university_name or "UNIVERSITY EXAMINATION",
+            subject_code=payload.subject_code,
+            subject_name=payload.subject_name,
+            exam_term=payload.exam_term,
+            total_marks=payload.total_marks,
+        )
+    except Exception as e:
+        print(f"[Sample Paper Generation Error]: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI generation is unavailable. Add a valid GROQ_API_KEY or GEMINI_API_KEY in Vercel and redeploy.",
+        )
 
     try:
         paper_data = parse_json_robust(raw_json)

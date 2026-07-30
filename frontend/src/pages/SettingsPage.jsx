@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { authService, documentService } from '../services'
+import { authService } from '../services'
 import { useTheme } from '../context/ThemeContext'
 import {
   User, Mail, Lock, Save, GraduationCap,
   Moon, Sun, Bell, Shield, CheckCircle,
-  Eye, EyeOff, Target, BookOpen, Zap
+  Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -13,7 +13,7 @@ const TABS = [
   { id: 'profile',   icon: User,     label: 'Profile'            },
   { id: 'security',  icon: Shield,   label: 'Security'           },
   { id: 'prefs',     icon: Bell,     label: 'Appearance & Theme' },
-  { id: 'goals',     icon: Target,   label: 'Study Preferences'  },
+  { id: 'notifications', icon: Bell, label: 'Notifications' },
 ]
 
 export default function SettingsPage() {
@@ -32,11 +32,10 @@ export default function SettingsPage() {
   const [changingPwd, setChangingPwd] = useState(false)
   const [showPass, setShowPass] = useState(false)
 
-  // Study Preferences state
-  const [defaultSummaryLength, setDefaultSummaryLength] = useState(localStorage.getItem('pref-summary-len') || 'short')
-  const [defaultQuizCount, setDefaultQuizCount] = useState(localStorage.getItem('pref-quiz-count') || '10')
-  const [dailyGoalHours, setDailyGoalHours] = useState(localStorage.getItem('pref-daily-goal') || '2')
-  const [docNotifications, setDocNotifications] = useState(true)
+  // Notification settings are local UI preferences; no secrets are displayed.
+  const [docNotifications, setDocNotifications] = useState(localStorage.getItem('pref-doc-notifications') !== 'false')
+  const [autoRefresh, setAutoRefresh] = useState(localStorage.getItem('pref-auto-refresh') !== 'false')
+  const [weeklyDigest, setWeeklyDigest] = useState(localStorage.getItem('pref-weekly-digest') === 'true')
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { toast.error('Name cannot be empty.'); return }
@@ -72,11 +71,11 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveStudyPrefs = () => {
-    localStorage.setItem('pref-summary-len', defaultSummaryLength)
-    localStorage.setItem('pref-quiz-count', defaultQuizCount)
-    localStorage.setItem('pref-daily-goal', dailyGoalHours)
-    toast.success('Study preferences updated successfully!')
+  const handleSaveNotifications = () => {
+    localStorage.setItem('pref-doc-notifications', String(docNotifications))
+    localStorage.setItem('pref-auto-refresh', String(autoRefresh))
+    localStorage.setItem('pref-weekly-digest', String(weeklyDigest))
+    toast.success('Notification settings updated successfully!')
   }
 
   const Label = ({ children }) => (
@@ -249,66 +248,30 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Study Preferences Tab */}
-        {tab === 'goals' && (
+        {/* Notifications Tab */}
+        {tab === 'notifications' && (
           <div className="card anim-in" style={{ padding: 24 }}>
-            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>Study & Learning Preferences</h2>
+            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Notification Settings</h2>
+            <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 18 }}>Control helpful app updates. API keys and private credentials are never shown here.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <Label><BookOpen size={9} style={{ display: 'inline', marginRight: 5 }} />Default Summary Depth</Label>
-                <select
-                  className="input"
-                  value={defaultSummaryLength}
-                  onChange={(e) => setDefaultSummaryLength(e.target.value)}
-                >
-                  <option value="short">Short Overview (~400 words)</option>
-                  <option value="detailed">Detailed Analysis (~1000 words)</option>
-                  <option value="bullets">Key Bullet Points (~800 words)</option>
-                </select>
-              </div>
-
-              <div>
-                <Label><Zap size={9} style={{ display: 'inline', marginRight: 5 }} />Default Quiz Questions Count</Label>
-                <select
-                  className="input"
-                  value={defaultQuizCount}
-                  onChange={(e) => setDefaultQuizCount(e.target.value)}
-                >
-                  <option value="5">5 Questions (Quick Check)</option>
-                  <option value="10">10 Questions (Standard Quiz)</option>
-                  <option value="15">15 Questions (Deep Test)</option>
-                  <option value="20">20 Questions (Exhaustive Test)</option>
-                </select>
-              </div>
-
-              <div>
-                <Label><Target size={9} style={{ display: 'inline', marginRight: 5 }} />Daily Study Goal (Hours)</Label>
-                <input
-                  className="input"
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={dailyGoalHours}
-                  onChange={(e) => setDailyGoalHours(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justify: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Document Processing Toasts</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text2)' }}>Show notification toast alerts when uploaded PDFs finish background indexing</div>
+              {[
+                ['Document Processing Toasts', 'Show alerts when uploaded PDFs finish indexing.', docNotifications, setDocNotifications],
+                ['Dashboard Auto-refresh', 'Refresh document status automatically while you work.', autoRefresh, setAutoRefresh],
+                ['Weekly Learning Summary', 'Keep a local preference for a weekly progress reminder.', weeklyDigest, setWeeklyDigest],
+              ].map(([label, description, enabled, setter]) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)', gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text2)' }}>{description}</div>
+                  </div>
+                  <button type="button" onClick={() => setter(!enabled)} className={`toggle ${enabled ? 'on' : ''}`} aria-label={`Toggle ${label}`} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setDocNotifications(!docNotifications)}
-                  className={`toggle ${docNotifications ? 'on' : ''}`}
-                />
-              </div>
+              ))}
             </div>
 
-            <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleSaveStudyPrefs}>
-              <Save size={14} /> Save Preferences
+            <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleSaveNotifications}>
+              <Save size={14} /> Save Notification Settings
             </button>
           </div>
         )}

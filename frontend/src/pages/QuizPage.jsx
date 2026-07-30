@@ -15,6 +15,7 @@ export default function QuizPage() {
   const [selectedIds, setSelectedIds] = useState([])
   const [quizType, setQuizType] = useState('mcq')
   const [numQuestions, setNumQuestions] = useState(5)
+  const [countInput, setCountInput] = useState('5')
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
   const [loading, setLoading] = useState(false)
@@ -32,6 +33,11 @@ export default function QuizPage() {
   }, [])
 
   const toggleDoc = (id) => setSelectedIds((p) => p.includes(id) ? p.filter((i) => i !== id) : [...p, id])
+  const setQuestionCount = (value) => {
+    const nextValue = Math.max(1, Math.min(30, Number(value) || 1))
+    setNumQuestions(nextValue)
+    setCountInput(String(nextValue))
+  }
 
   const handleGenerate = async () => {
     if (!selectedIds.length) { toast.error('Select at least one document.'); return }
@@ -121,15 +127,30 @@ export default function QuizPage() {
             <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)' }}>
               {quizType === 'flashcards' ? 'Cards' : 'Questions'}
             </span>
-            <span className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{numQuestions}</span>
+            <input
+              className="input font-mono"
+              aria-label={quizType === 'flashcards' ? 'Number of flashcards' : 'Number of questions'}
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              value={countInput}
+              onChange={(e) => {
+                const raw = e.target.value
+                setCountInput(raw)
+                if (/^\d+$/.test(raw)) setQuestionCount(Number(raw))
+              }}
+              onBlur={() => setQuestionCount(countInput)}
+              style={{ width: 62, padding: '3px 6px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}
+            />
           </div>
           <input
             type="range"
             min={5}
             max={30}
-            step={5}
+            step={1}
             value={numQuestions}
-            onChange={(e) => setNumQuestions(+e.target.value)}
+            onChange={(e) => setQuestionCount(e.target.value)}
             style={{
               width: '100%',
               cursor: 'pointer',
@@ -141,7 +162,7 @@ export default function QuizPage() {
               <button
                 key={n}
                 type="button"
-                onClick={() => setNumQuestions(n)}
+                onClick={() => setQuestionCount(n)}
                 style={{
                   background: 'none',
                   border: 'none',

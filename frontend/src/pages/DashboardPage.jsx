@@ -51,7 +51,8 @@ export default function DashboardPage() {
   const processingDocs = documents.filter((d) => d.status === 'processing').length
   const firstName = user?.full_name?.split(' ')[0] || 'User'
   const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const greeting = now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening'
+  const hour = now.getHours()
+  const greeting = hour < 5 ? 'night' : hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night'
 
   const categories = ['All', ...Array.from(new Set(documents.map((d) => d.category || 'General')))]
   const filteredDocs = selectedCategory === 'All'
