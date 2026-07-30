@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { quizService, documentService } from '../services'
 import LoadingSpinner from '../components/LoadingSpinner'
 import CategoryDocumentSelector from '../components/CategoryDocumentSelector'
-import { Zap, RotateCcw, Download, ChevronLeft, ChevronRight, HelpCircle, CreditCard, Sparkles, CheckCircle, XCircle, Trophy } from 'lucide-react'
+import { Zap, RotateCcw, Download, ChevronLeft, ChevronRight, HelpCircle, CreditCard, Sparkles, CheckCircle, XCircle, Trophy, Plus, Minus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const QUIZ_TYPES = [
@@ -123,41 +123,31 @@ export default function QuizPage() {
 
         {/* Count Slider */}
         <div className="card" style={{ padding: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)' }}>
               {quizType === 'flashcards' ? 'Cards' : 'Questions'}
             </span>
-            <input
-              className="input font-mono"
-              aria-label={quizType === 'flashcards' ? 'Number of flashcards' : 'Number of questions'}
-              type="number"
-              min={1}
-              max={30}
-              step={1}
-              value={countInput}
-              onChange={(e) => {
-                const raw = e.target.value
-                setCountInput(raw)
-                if (/^\d+$/.test(raw)) setQuestionCount(Number(raw))
-              }}
-              onBlur={() => setQuestionCount(countInput)}
-              style={{ width: 62, padding: '3px 6px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}
-            />
+            <div className="count-stepper">
+              <button type="button" onClick={() => setQuestionCount(numQuestions - 1)} aria-label="Decrease count"><Minus size={13} /></button>
+              <input
+                className="count-input font-mono"
+                aria-label={quizType === 'flashcards' ? 'Number of flashcards' : 'Number of questions'}
+                type="number"
+                min={1}
+                max={30}
+                step={1}
+                value={countInput}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  setCountInput(raw)
+                  if (/^\d+$/.test(raw)) setQuestionCount(Number(raw))
+                }}
+                onBlur={() => setQuestionCount(countInput)}
+              />
+              <button type="button" onClick={() => setQuestionCount(numQuestions + 1)} aria-label="Increase count"><Plus size={13} /></button>
+            </div>
           </div>
-          <input
-            type="range"
-            min={5}
-            max={30}
-            step={1}
-            value={numQuestions}
-            onChange={(e) => setQuestionCount(e.target.value)}
-            style={{
-              width: '100%',
-              cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent) ${((numQuestions - 5) / 25) * 100}%, var(--surface2) ${((numQuestions - 5) / 25) * 100}%)`
-            }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 6, padding: '0 2px' }}>
+          <div className="count-presets">
             {[5, 10, 15, 20, 25, 30].map((n) => (
               <button
                 key={n}
@@ -171,7 +161,7 @@ export default function QuizPage() {
                   cursor: 'pointer',
                   padding: '2px 0',
                 }}
-              >
+                >
                 {n}
               </button>
             ))}

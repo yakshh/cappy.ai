@@ -417,22 +417,35 @@ body {
 @keyframes fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 .anim-in { animation: fadein 0.25s ease forwards; }
 
+.mobile-menu-toggle { display: none; }
+.count-stepper { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); }
+.count-stepper button { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; color: var(--text2); background: transparent; cursor: pointer; }
+.count-stepper button:hover { color: var(--text); background: var(--border); }
+.count-input { width: 38px; padding: 2px 0; border: 0; outline: 0; color: var(--accent); background: transparent; text-align: center; font-size: 13px; font-weight: 700; }
+.count-input::-webkit-inner-spin-button, .count-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.count-input { appearance: textfield; -moz-appearance: textfield; }
+.count-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.count-presets button { min-width: 38px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 10px; }
+.count-presets button:hover, .count-presets button:focus-visible { border-color: var(--accent); color: var(--accent); }
+
 /* Responsive layout adjustments for phones and small tablets. */
 @media (max-width: 900px) {
   .app-header { padding: 0 14px; gap: 10px; }
   .app-brand-copy { display: none; }
-  .app-nav-links { flex: 1; justify-content: flex-start; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .app-nav-links::-webkit-scrollbar { display: none; }
-  .app-nav-label { display: inline; font-size: 10px; }
+  .mobile-menu-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface2); cursor: pointer; }
+  .app-nav-links { display: none !important; }
+  .app-nav-links.mobile-menu-open { display: flex !important; position: absolute; top: calc(var(--header-h) - 1px); left: 10px; right: 10px; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 14px 35px rgba(0,0,0,.35); z-index: 60; }
+  .app-nav-links.mobile-menu-open .nav-top-item { justify-content: flex-start; padding: 10px 12px; }
+  .app-nav-label { display: inline; font-size: 13px; }
   .app-user-copy { display: none !important; }
   .app-main { padding: 18px 14px 32px; }
   .responsive-workspace { display: flex !important; flex-direction: column; height: auto !important; min-height: 0; }
   .responsive-workspace > div { min-height: 0; }
   .responsive-workspace > div:first-child { overflow: visible !important; height: auto !important; }
   .settings-layout { display: flex !important; flex-direction: column; gap: 14px; }
-  .settings-layout > div:first-child { flex-direction: row !important; overflow-x: auto; padding-bottom: 2px; }
-  .settings-layout > div:first-child .card { min-width: 210px; margin-bottom: 0 !important; }
-  .settings-layout > div:first-child > button { white-space: nowrap; }
+  .settings-layout > div:first-child { flex-direction: column !important; overflow: visible; padding-bottom: 0; width: 100%; }
+  .settings-layout > div:first-child .card { width: 100%; margin-bottom: 0 !important; }
+  .settings-layout > div:first-child > button { width: 100%; white-space: normal; }
 }
 
 @media (max-width: 520px) {

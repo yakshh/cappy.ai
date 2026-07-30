@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, BookText, Zap, ScrollText, Search, Settings, Sun, Moon, LogOut, GraduationCap } from 'lucide-react'
+import { useState } from 'react'
+import { LayoutDashboard, BookText, Zap, ScrollText, Search, Settings, Sun, Moon, LogOut, GraduationCap, Menu, X } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -16,6 +17,7 @@ export default function Navbar() {
   const { isDark, toggle } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -54,11 +56,19 @@ export default function Navbar() {
       </NavLink>
 
       {/* Center: Top Navigation Row */}
-      <nav className="app-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <button
+        className="mobile-menu-toggle"
+        onClick={() => setMobileMenuOpen((open) => !open)}
+        aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+      >
+        {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+      </button>
+
+      <nav className={`app-nav-links ${mobileMenuOpen ? 'mobile-menu-open' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => {
           const active = pathname === to || (to !== '/dashboard' && pathname.startsWith(to))
           return (
-            <NavLink key={to} to={to} style={{ textDecoration: 'none' }}>
+            <NavLink key={to} to={to} onClick={() => setMobileMenuOpen(false)} style={{ textDecoration: 'none' }}>
               <div className={`nav-top-item ${active ? 'active' : ''}`}>
                 <Icon size={14} className="icon" />
                 <span className="app-nav-label">{label}</span>
