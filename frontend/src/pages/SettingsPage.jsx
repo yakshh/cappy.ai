@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext'
 import {
   User, Mail, Lock, Save, GraduationCap,
   Moon, Sun, Bell, Shield, CheckCircle,
-  Eye, EyeOff
+  Eye, EyeOff, Palette
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -18,7 +18,7 @@ const TABS = [
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuth()
-  const { isDark, setIsDark } = useTheme()
+  const { isDark, setIsDark, colorTheme, setColorTheme, colorThemes } = useTheme()
   const [tab, setTab] = useState('profile')
 
   // Profile state
@@ -212,13 +212,16 @@ export default function SettingsPage() {
         {tab === 'prefs' && (
           <div className="card anim-in" style={{ padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Theme Appearance</h2>
-              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Instant switch</span>
+              <div>
+                <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Appearance & Theme</h2>
+                <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 3 }}>Choose a mode and a color palette for your study space.</p>
+              </div>
+              <Palette size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 22 }}>
               {[
-                { id: 'dark',  icon: Moon, label: 'Dark Mode',  desc: 'Warm black & terracotta red', bg: '#0D0C0C', surface: '#141212', textCol: '#EDE9E9' },
-                { id: 'light', icon: Sun,  label: 'Light Mode', desc: 'Linen white & deep red',       bg: '#F5F3F0', surface: '#FDFCFB', textCol: '#1E1A1A' },
+                { id: 'dark',  icon: Moon, label: 'Dark Mode',  desc: 'Low light, easy on the eyes', bg: '#0D0C0C', surface: '#141212', textCol: '#EDE9E9' },
+                { id: 'light', icon: Sun,  label: 'Light Mode', desc: 'Bright linen workspace',       bg: '#F5F3F0', surface: '#FDFCFB', textCol: '#1E1A1A' },
               ].map((theme) => {
                 const active = (theme.id === 'dark') === isDark
                 return (
@@ -244,6 +247,42 @@ export default function SettingsPage() {
                   </button>
                 )
               })}
+            </div>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <h3 className="font-display" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Color palette</h3>
+                  <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>Preview and switch the accent style instantly.</p>
+                </div>
+                <span style={{ fontSize: 10, color: 'var(--text3)' }}>{isDark ? 'Dark' : 'Light'} palette</span>
+              </div>
+              <div className="theme-palette-grid">
+                {colorThemes.map((theme) => {
+                  const active = theme.id === colorTheme
+                  const paletteClass = `theme-preview theme-preview-${theme.id}`
+                  return (
+                    <button
+                      key={theme.id}
+                      className={paletteClass}
+                      onClick={() => setColorTheme(theme.id)}
+                      aria-pressed={active}
+                      style={{ borderColor: active ? 'var(--accent)' : 'var(--border)' }}
+                    >
+                      <span className="theme-preview-swatch" style={{ background: theme.accent }} />
+                      <span className="theme-preview-copy">
+                        <span className="theme-preview-name">{theme.name}</span>
+                        <span className="theme-preview-description">{theme.description}</span>
+                      </span>
+                      <span className="theme-preview-bars" aria-hidden="true">
+                        <i style={{ background: theme.accent }} />
+                        <i style={{ background: theme.accentHi, width: '62%' }} />
+                        <i style={{ background: 'var(--border2)', width: '78%' }} />
+                      </span>
+                      {active && <CheckCircle className="theme-preview-check" size={14} />}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}

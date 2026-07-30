@@ -68,6 +68,45 @@
   --dot:        rgba(0, 0, 0, 0.05);
 }
 
+/* Alternate color palettes. Each palette keeps the same quiet, study-focused surfaces
+   while changing the accent and supporting tones for both light and dark modes. */
+[data-color-theme="blastic-blue"][data-theme="dark"] {
+  --bg: #0A101B; --surface: #101927; --surface2: #172337; --border: #253550; --border2: #35527A;
+  --text: #E7F0FF; --text2: #91A7C7; --text3: #5D7292;
+  --accent: #4B8DF8; --accent-hi: #75ADFF; --accent-dim: rgba(75,141,248,.15); --accent-lo: rgba(75,141,248,.07);
+  --blue: #75ADFF; --blue-dim: rgba(117,173,255,.14); --dot: rgba(152,190,255,.07);
+}
+[data-color-theme="blastic-blue"][data-theme="light"] {
+  --bg: #F1F6FC; --surface: #FBFDFF; --surface2: #E6EEF8; --border: #D1DDEB; --border2: #B4C8E1;
+  --text: #17253A; --text2: #5D718D; --text3: #91A4BC;
+  --accent: #2867C7; --accent-hi: #4B8DF8; --accent-dim: rgba(40,103,199,.12); --accent-lo: rgba(40,103,199,.06);
+  --blue: #1D4ED8; --blue-dim: rgba(29,78,216,.11); --dot: rgba(40,103,199,.06);
+}
+[data-color-theme="planatic-pink"][data-theme="dark"] {
+  --bg: #160D14; --surface: #20121C; --surface2: #2A1825; --border: #402537; --border2: #62344E;
+  --text: #FCEAF3; --text2: #C69CAF; --text3: #8D647C;
+  --accent: #E66AA6; --accent-hi: #F28CC0; --accent-dim: rgba(230,106,166,.15); --accent-lo: rgba(230,106,166,.07);
+  --blue: #86B7FF; --blue-dim: rgba(134,183,255,.13); --dot: rgba(255,166,207,.07);
+}
+[data-color-theme="planatic-pink"][data-theme="light"] {
+  --bg: #FFF3F8; --surface: #FFFBFD; --surface2: #F7E4ED; --border: #EACBD9; --border2: #DDA9C1;
+  --text: #321927; --text2: #805A6C; --text3: #B998A8;
+  --accent: #C84D83; --accent-hi: #E66AA6; --accent-dim: rgba(200,77,131,.12); --accent-lo: rgba(200,77,131,.06);
+  --blue: #315FA8; --blue-dim: rgba(49,95,168,.11); --dot: rgba(200,77,131,.06);
+}
+[data-color-theme="gardenic-green"][data-theme="dark"] {
+  --bg: #0B1511; --surface: #101D17; --surface2: #17291F; --border: #263E31; --border2: #396049;
+  --text: #E7F6EC; --text2: #95B5A0; --text3: #5F806B;
+  --accent: #4CAF78; --accent-hi: #72D39A; --accent-dim: rgba(76,175,120,.15); --accent-lo: rgba(76,175,120,.07);
+  --green: #72D39A; --green-dim: rgba(114,211,154,.14); --dot: rgba(133,216,163,.07);
+}
+[data-color-theme="gardenic-green"][data-theme="light"] {
+  --bg: #F1F8F3; --surface: #FCFFFD; --surface2: #E3F0E7; --border: #C9DFCF; --border2: #A8C9B2;
+  --text: #172B1E; --text2: #5E7966; --text3: #91AD99;
+  --accent: #2F8D5B; --accent-hi: #4CAF78; --accent-dim: rgba(47,141,91,.12); --accent-lo: rgba(47,141,91,.06);
+  --green: #187342; --green-dim: rgba(24,115,66,.11); --dot: rgba(47,141,91,.06);
+}
+
 /* ───────────── Base Reset & Noise Texture ───────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -315,6 +354,23 @@ body {
 }
 .toggle.on::after { transform: translateX(18px); }
 
+/* Theme palette previews */
+.theme-palette-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.theme-preview {
+  min-width: 0; min-height: 92px; padding: 11px; border: 1px solid; border-radius: 10px;
+  background: var(--surface2); color: var(--text); text-align: left; cursor: pointer;
+  position: relative; display: grid; grid-template-columns: auto 1fr; gap: 8px;
+  transition: border-color .15s, transform .15s, background-color .2s;
+}
+.theme-preview:hover { transform: translateY(-1px); background: var(--surface); }
+.theme-preview-swatch { width: 18px; height: 18px; border-radius: 6px; box-shadow: 0 0 0 3px var(--accent-lo); }
+.theme-preview-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.theme-preview-name { font-family: 'Space Grotesk'; font-size: 12px; font-weight: 700; color: var(--text); }
+.theme-preview-description { font-size: 10px; line-height: 1.35; color: var(--text2); }
+.theme-preview-bars { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; padding-top: 3px; }
+.theme-preview-bars i { display: block; width: 84%; height: 4px; border-radius: 99px; opacity: .9; }
+.theme-preview-check { position: absolute; right: 9px; top: 11px; color: var(--accent); }
+
 /* MCQ Option */
 .mcq-option {
   display: flex;
@@ -456,6 +512,7 @@ body {
   .btn { padding-left: 10px; padding-right: 10px; }
   .card { border-radius: 10px; }
   .responsive-workspace .card { padding-left: 14px !important; padding-right: 14px !important; }
+  .theme-palette-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 360px) {

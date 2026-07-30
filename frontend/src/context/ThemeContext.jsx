@@ -2,21 +2,31 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const ThemeContext = createContext(null)
 
+export const COLOR_THEMES = [
+  { id: 'rusty-red', name: 'Rusty Red', description: 'Warm brick-red, the original cappy.ai look', accent: '#C9514A', accentHi: '#D96560' },
+  { id: 'blastic-blue', name: 'Blastic Blue', description: 'Focused blue with a cool midnight canvas', accent: '#4B8DF8', accentHi: '#75ADFF' },
+  { id: 'planatic-pink', name: 'Planatic Pink', description: 'Confident pink with a soft berry glow', accent: '#E66AA6', accentHi: '#F28CC0' },
+  { id: 'gardenic-green', name: 'Gardenic Green', description: 'Calm green inspired by a quiet study garden', accent: '#4CAF78', accentHi: '#72D39A' },
+]
+
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
     const s = localStorage.getItem('vault-theme')
     if (s) return s === 'dark'
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
+  const [colorTheme, setColorTheme] = useState(() => localStorage.getItem('vault-color-theme') || 'rusty-red')
 
   useEffect(() => {
     const el = document.documentElement
     el.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    el.setAttribute('data-color-theme', colorTheme)
     localStorage.setItem('vault-theme', isDark ? 'dark' : 'light')
-  }, [isDark])
+    localStorage.setItem('vault-color-theme', colorTheme)
+  }, [isDark, colorTheme])
 
   return (
-    <ThemeContext.Provider value={{ isDark, setIsDark, toggle: () => setIsDark(p => !p) }}>
+    <ThemeContext.Provider value={{ isDark, setIsDark, colorTheme, setColorTheme, colorThemes: COLOR_THEMES, toggle: () => setIsDark(p => !p) }}>
       {children}
     </ThemeContext.Provider>
   )
