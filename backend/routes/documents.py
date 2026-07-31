@@ -174,14 +174,12 @@ async def upload_chunk(
     db.commit()
     db.refresh(doc)
 
-    # Process in background
-    import threading
-    t = threading.Thread(
-        target=_process_document,
-        args=(doc.id, str(file_path), current_user.id, original_filename, settings.DATABASE_URL),
-        daemon=True,
-    )
-    t.start()
+    # Process document synchronously so chunks are permanently written to PostgreSQL
+    try:
+        _process_document(doc.id, str(file_path), current_user.id, original_filename, settings.DATABASE_URL)
+        db.refresh(doc)
+    except Exception as e:
+        print(f"[Upload Processing Error]: {e}")
 
     return {
         "done": True,
@@ -239,14 +237,17 @@ async def upload_documents(
         db.commit()
         db.refresh(doc)
 
-        background_tasks.add_task(
-            _process_document,
-            doc.id,
-            str(file_path),
-            current_user.id,
-            file.filename,
-            settings.DATABASE_URL,
-        )
+        try:
+            _process_document(
+                doc.id,
+                str(file_path),
+                current_user.id,
+                file.filename,
+                settings.DATABASE_URL,
+            )
+            db.refresh(doc)
+        except Exception as e:
+            print(f"[Legacy Upload Processing Error]: {e}")
 
         uploaded_docs.append({
             "id": doc.id,
