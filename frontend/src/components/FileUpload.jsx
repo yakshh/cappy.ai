@@ -1,12 +1,16 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, FileText, X } from 'lucide-react'
+import api from '../services/api'
 import { documentService } from '../services'
 import toast from 'react-hot-toast'
-import { upload } from '@vercel/blob/client'
+
+const CHUNK_SIZE = 3 * 1024 * 1024 // 3 MB per chunk — always under Vercel's 4.5 MB limit
 
 /**
- * FileUpload — drag-and-drop PDF uploader with progress indicator.
+ * FileUpload — drag-and-drop PDF uploader using chunked upload.
+ * Splits each PDF into 3MB pieces in the browser and sends them
+ * one by one to the Python backend, bypassing Vercel's 4.5MB body limit.
  */
 export default function FileUpload({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false)
@@ -19,14 +23,14 @@ export default function FileUpload({ onUploadSuccess }) {
     }
     if (acceptedFiles.length > 0) {
       setSelectedFiles(prev => {
-        const existing = new Set(prev.map(file => `${file.name}:${file.size}:${file.lastModified}`))
-        const nextFiles = acceptedFiles.filter(file => {
-          const key = `${file.name}:${file.size}:${file.lastModified}`
+        const existing = new Set(prev.map(f => `${f.name}:${f.size}:${f.lastModified}`))
+        const next = acceptedFiles.filter(f => {
+          const key = `${f.name}:${f.size}:${f.lastModified}`
           if (existing.has(key)) return false
           existing.add(key)
           return true
         })
-        return [...prev, ...nextFiles]
+        return [...prev, ...next]
       })
     }
   }, [])
@@ -38,6 +42,50 @@ export default function FileUpload({ onUploadSuccess }) {
     multiple: true,
   })
 
+  const uploadFile = async (file, fileIndex, totalFiles) => {
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+    // Use a random upload ID to group chunks
+    const uploadId = crypto.randomUUID()
+    // Encode filename to handle special chars safely in HTTP headers
+    const encodedName = encodeURIComponent(file.name)
+
+    let result = null
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE
+      const end = Math.min(start + CHUNK_SIZE, file.size)
+      const chunkBlob = file.slice(start, end)
+
+      const formData = new FormData()
+      formData.append('file', chunkBlob, `chunk_${i}`)
+
+      const response = await api.post('/documents/upload-chunk', formData, {
+        headers: {
+          'upload-id': uploadId,
+          'chunk-index': i,
+          'total-chunks': totalChunks,
+          'original-filename': encodedName,
+          'Content-Type': 'multipart/form-data',
+        },
+        // Track upload progress for this individual chunk
+        onUploadProgress: (evt) => {
+          const chunksDone = i
+          const chunkProgress = evt.total ? evt.loaded / evt.total : 0
+          const fileProgress = (chunksDone + chunkProgress) / totalChunks
+          const overall = ((fileIndex + fileProgress) / totalFiles) * 100
+          setProgress(Math.round(overall))
+        },
+      })
+
+      if (response.data.done) {
+        result = response.data.document
+        setProgress(Math.round(((fileIndex + 1) / totalFiles) * 100))
+      }
+    }
+
+    return result
+  }
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return
 
@@ -48,49 +96,31 @@ export default function FileUpload({ onUploadSuccess }) {
       const uploadedDocs = []
       const failedFiles = []
 
-      // Upload each file separately directly to Vercel Blob from the client
       for (const [index, file] of selectedFiles.entries()) {
         try {
-          // 1. Upload direct to Vercel Blob
-          const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-          const newBlob = await upload(safeName, file, {
-            access: 'public',
-            handleUploadUrl: '/api/upload-token',
-            multipart: true,
-            onUploadProgress: (progressEvent) => {
-              const fileProgress = progressEvent.percentage / 100
-              setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
-            }
-          })
-
-          // 2. Notify backend to process the uploaded blob
-          const { data } = await documentService.uploadBlob({
-            url: newBlob.url,
-            filename: file.name,
-            size: file.size
-          })
-          
-          uploadedDocs.push(data.document)
-          setProgress(Math.round(((index + 1) / selectedFiles.length) * 100))
+          const doc = await uploadFile(file, index, selectedFiles.length)
+          if (doc) uploadedDocs.push(doc)
         } catch (error) {
           console.error(error)
-          failedFiles.push(`${file.name} (${error.message || 'Unknown'})`)
+          const msg = error?.response?.data?.detail || error.message || 'Unknown error'
+          failedFiles.push(`${file.name} (${msg})`)
         }
       }
 
       if (uploadedDocs.length === 0) {
-        throw new Error(failedFiles.length ? `Could not upload: ${failedFiles.join(', ')}` : 'No files were uploaded.')
+        throw new Error(failedFiles.length ? `Failed: ${failedFiles.join(' | ')}` : 'No files uploaded.')
       }
 
-      toast.success(`${uploadedDocs.length} PDF${uploadedDocs.length === 1 ? '' : 's'} uploaded successfully.`)
+      toast.success(`${uploadedDocs.length} PDF${uploadedDocs.length === 1 ? '' : 's'} uploaded!`)
       if (failedFiles.length > 0) {
-        toast.error(`Skipped ${failedFiles.length} file${failedFiles.length === 1 ? '' : 's'}: ${failedFiles.join(', ')}`)
+        toast.error(`Skipped: ${failedFiles.join(', ')}`)
       }
+
       setSelectedFiles([])
       setProgress(100)
       onUploadSuccess?.(uploadedDocs)
     } catch (err) {
-      toast.error(err.response?.data?.detail || err.message || 'Upload failed. Please try again.')
+      toast.error(err.message || 'Upload failed.')
     } finally {
       setUploading(false)
     }
@@ -110,7 +140,6 @@ export default function FileUpload({ onUploadSuccess }) {
                     }`}
       >
         <input {...getInputProps()} id="file-input" />
-
         <div className="flex flex-col items-center gap-3">
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300
                           ${isDragActive ? 'bg-brand-500/30' : 'bg-white/5'}`}>
@@ -125,7 +154,7 @@ export default function FileUpload({ onUploadSuccess }) {
         </div>
       </div>
 
-      {/* Selected file preview */}
+      {/* Selected file list */}
       {selectedFiles.length > 0 && (
         <div className="space-y-2">
           {selectedFiles.map((file, idx) => (
@@ -153,11 +182,11 @@ export default function FileUpload({ onUploadSuccess }) {
         </div>
       )}
 
-      {/* Upload progress */}
+      {/* Progress bar */}
       {uploading && (
         <div className="space-y-2 animate-fade-in">
           <div className="flex justify-between text-xs text-slate-400">
-            <span>Uploading PDF {Math.min(selectedFiles.length, Math.floor((progress / 100) * selectedFiles.length) + 1)} of {selectedFiles.length}...</span>
+            <span>Uploading…</span>
             <span>{progress}%</span>
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
