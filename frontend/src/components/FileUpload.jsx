@@ -52,9 +52,11 @@ export default function FileUpload({ onUploadSuccess }) {
       for (const [index, file] of selectedFiles.entries()) {
         try {
           // 1. Upload direct to Vercel Blob
-          const newBlob = await upload(file.name, file, {
+          const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+          const newBlob = await upload(safeName, file, {
             access: 'public',
             handleUploadUrl: '/api/upload-token',
+            multipart: true,
             onUploadProgress: (progressEvent) => {
               const fileProgress = progressEvent.percentage / 100
               setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
@@ -72,7 +74,7 @@ export default function FileUpload({ onUploadSuccess }) {
           setProgress(Math.round(((index + 1) / selectedFiles.length) * 100))
         } catch (error) {
           console.error(error)
-          failedFiles.push(file.name)
+          failedFiles.push(`${file.name} (${error.message || 'Unknown'})`)
         }
       }
 
