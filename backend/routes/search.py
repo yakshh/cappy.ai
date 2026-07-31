@@ -35,13 +35,17 @@ def semantic_search(
     if not 1 <= payload.n_results <= 50:
         raise HTTPException(status_code=422, detail="n_results must be between 1 and 50.")
 
-    results = query_store(
-        user_id=current_user.id,
-        query_text=payload.query,
-        n_results=payload.n_results,
-        document_ids=payload.document_ids,
-        randomize=False,
-    )
+    try:
+        results = query_store(
+            user_id=current_user.id,
+            query_text=payload.query,
+            n_results=payload.n_results,
+            document_ids=payload.document_ids,
+            randomize=False,
+        )
+    except Exception as e:
+        print(f"[Search] ChromaDB error: {e}")
+        results = []
 
     # Sort results strictly by Semantic Relevance Match Score (SRMS) descending
     results = sorted(results, key=lambda x: x.get("score", 0), reverse=True)
@@ -51,3 +55,4 @@ def semantic_search(
         "total_results": len(results),
         "results": results,
     }
+

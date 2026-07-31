@@ -2,78 +2,45 @@
 routes/sample_paper.py — Generate GTU examination sample papers from uploaded documents.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
 import os
 import json
 import io
-import pdfplumber
+import uuid
+import re
+import traceback
 from datetime import date
 from typing import List, Optional
+
+import pdfplumber
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from database import get_db
 from models.user import User
 from models.document import Document
+from models.generated_paper import GeneratedPaper
 from rag.vector_store import query_store
 from rag.generator import generate_sample_paper, solve_question_paper, parse_json_robust
 
 router = APIRouter(prefix="/api/sample-paper", tags=["Sample Paper"])
 
-import os
+# ── DB helpers for generated papers ───────────────────────────────────────────
 
-_TMP = "/tmp" if os.getenv("VERCEL") or os.getenv("VERCEL_ENV") else "."
-USAGE_FILE = os.path.join(_TMP, "usage.json")
-GENERATED_PAPERS_FILE = os.path.join(_TMP, "generated_papers.json")
+def save_generated_paper_db(db: Session, user_id: int, paper_id: str, text: str):
+    """Persist paper text to PostgreSQL so it survives serverless restarts."""
+    existing = db.query(GeneratedPaper).filter(GeneratedPaper.paper_id == paper_id).first()
+    if existing:
+        existing.content = text
+    else:
+        db.add(GeneratedPaper(paper_id=paper_id, user_id=user_id, content=text))
+    db.commit()
 
-import uuid
-import re
-
-def save_generated_paper(paper_id: str, text: str):
-    data = {}
-    if os.path.exists(GENERATED_PAPERS_FILE):
-        try:
-            with open(GENERATED_PAPERS_FILE, 'r') as f:
-                data = json.load(f)
-        except:
-            pass
-    data[paper_id] = text
-    with open(GENERATED_PAPERS_FILE, 'w') as f:
-        json.dump(data, f)
-
-def get_generated_paper(paper_id: str) -> Optional[str]:
-    if os.path.exists(GENERATED_PAPERS_FILE):
-        try:
-            with open(GENERATED_PAPERS_FILE, 'r') as f:
-                data = json.load(f)
-                return data.get(paper_id)
-        except:
-            pass
-    return None
-
-def check_daily_limit(user_id: int):
-    today = str(date.today())
-    usage = {}
-    if os.path.exists(USAGE_FILE):
-        try:
-            with open(USAGE_FILE, 'r') as f:
-                usage = json.load(f)
-        except:
-            pass
-            
-    uid_str = str(user_id)
-    user_usage = usage.get(uid_str, {"date": today, "count": 0})
-    if user_usage["date"] != today:
-        user_usage = {"date": today, "count": 0}
-        
-    if user_usage["count"] >= 50:
-        raise HTTPException(status_code=429, detail="Daily limit of 5 paper solves reached. Please try again tomorrow.")
-        
-    user_usage["count"] += 1
-    usage[uid_str] = user_usage
-    with open(USAGE_FILE, 'w') as f:
-        json.dump(usage, f)
+def get_generated_paper_db(db: Session, paper_id: str) -> Optional[str]:
+    """Retrieve paper text from PostgreSQL."""
+    row = db.query(GeneratedPaper).filter(GeneratedPaper.paper_id == paper_id).first()
+    return row.content if row else None
 
 
 class SamplePaperRequest(BaseModel):
@@ -85,6 +52,8 @@ class SamplePaperRequest(BaseModel):
     total_marks: int = 70
 
 
+# ── Generate ───────────────────────────────────────────────────────────────────
+
 @router.post("/")
 def create_sample_paper(
     payload: SamplePaperRequest,
@@ -92,7 +61,6 @@ def create_sample_paper(
     current_user: User = Depends(get_current_user),
 ):
     """Generate a structured sample question paper from selected documents."""
-    import traceback
     try:
         return _create_sample_paper_impl(payload, db, current_user)
     except HTTPException:
@@ -100,7 +68,7 @@ def create_sample_paper(
     except Exception as e:
         tb = traceback.format_exc()
         print(f"[Sample Paper CRASH]: {tb}")
-        raise HTTPException(status_code=500, detail=f"Internal error: {type(e).__name__}: {e} | {tb[-300:]}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {type(e).__name__}: {e}")
 
 
 def _create_sample_paper_impl(payload, db, current_user):
@@ -116,7 +84,7 @@ def _create_sample_paper_impl(payload, db, current_user):
     if not docs:
         raise HTTPException(status_code=404, detail="No ready documents found.")
 
-    # Try to get content from ChromaDB (may be empty on Vercel due to ephemeral /tmp)
+    # Try ChromaDB — it's empty on Vercel (ephemeral /tmp), so fall back gracefully
     search_query = f"{payload.subject_name} key concepts principles applications architectures algorithms protocols security"
     chunks = query_store(
         user_id=current_user.id,
@@ -128,7 +96,6 @@ def _create_sample_paper_impl(payload, db, current_user):
     if chunks:
         combined_text = "\n\n".join(c["text"] for c in chunks)
     else:
-        # ChromaDB is empty (ephemeral serverless env) — generate using doc filenames + subject info
         doc_names = ", ".join(d.filename for d in docs)
         combined_text = (
             f"Subject: {payload.subject_name} (Code: {payload.subject_code})\n"
@@ -136,7 +103,6 @@ def _create_sample_paper_impl(payload, db, current_user):
             f"Generate a comprehensive {payload.total_marks}-mark university examination paper "
             f"covering all major topics of {payload.subject_name}."
         )
-        print(f"[Sample Paper] ChromaDB empty — using subject metadata fallback for: {payload.subject_name}")
 
     try:
         raw_json = generate_sample_paper(
@@ -148,16 +114,12 @@ def _create_sample_paper_impl(payload, db, current_user):
             total_marks=payload.total_marks,
         )
     except Exception as e:
-        print(f"[Sample Paper Generation Error]: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"AI generation failed: {e}",
-        )
+        raise HTTPException(status_code=503, detail=f"AI generation failed: {e}")
 
     try:
         paper_data = parse_json_robust(raw_json)
-        
-        # Build raw markdown if not present
+
+        # Build raw markdown
         if "raw_markdown" not in paper_data and "questions" in paper_data:
             md = []
             if "instructions" in paper_data:
@@ -174,21 +136,26 @@ def _create_sample_paper_impl(payload, db, current_user):
                     for item in q["or_items"]:
                         md.append(f"**{item.get('part', '')}** {item.get('question', '')} *(Marks: {item.get('marks', '')})*")
             paper_data["raw_markdown"] = "\n\n".join(md)
-            
-    except Exception as e:
-        print(f"[Sample Paper Error]: {e} | Raw output: {raw_json[:200]}")
-        raise HTTPException(status_code=500, detail="AI returned invalid sample paper format. Please try again.")
 
-    # Save the generated paper so we can solve it later without OCR
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="AI returned invalid format. Please try again.")
+
+    # Persist paper text to DB so Solve can retrieve it without OCR
     paper_id = str(uuid.uuid4())[:8]
     paper_data["paper_id"] = paper_id
-    save_generated_paper(paper_id, paper_data.get("raw_markdown", paper_data.get("content", "")))
+    paper_text = paper_data.get("raw_markdown", paper_data.get("content", ""))
+    try:
+        save_generated_paper_db(db, current_user.id, paper_id, paper_text)
+    except Exception as e:
+        print(f"[Generated Paper DB Save Warning]: {e}")
 
     return {
         "paper": paper_data,
         "documents": [{"id": d.id, "filename": d.filename} for d in docs],
     }
 
+
+# ── Solve ──────────────────────────────────────────────────────────────────────
 
 @router.post("/solve-upload")
 def solve_uploaded_pdf_paper(
@@ -199,23 +166,22 @@ def solve_uploaded_pdf_paper(
     current_user: User = Depends(get_current_user),
 ):
     """Extract text from PDF and generate model solutions."""
-    check_daily_limit(current_user.id)
-
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-        
+
     pdf_text = ""
     content = file.file.read()
-    
-    # 1. MAGIC CHECK: Did they upload a paper generated by our system?
+
+    # 1. Check if this is one of our generated papers — retrieve text from DB
     match = re.search(r"ID-([a-zA-Z0-9]+)\.pdf", file.filename, re.IGNORECASE)
     if match:
         paper_id = match.group(1)
-        saved_text = get_generated_paper(paper_id)
+        saved_text = get_generated_paper_db(db, paper_id)
         if saved_text:
             pdf_text = saved_text
-            
-    # 2. STANDARD CHECK: If not one of ours, try to extract text normally
+            print(f"[Solve] Retrieved generated paper from DB: {paper_id}")
+
+    # 2. Standard pdfplumber text extraction
     if not pdf_text:
         try:
             with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -225,33 +191,17 @@ def solve_uploaded_pdf_paper(
                         pdf_text += ext + "\n"
         except Exception:
             pass
-        
+
+    # 3. If still no text (image-based PDF) — fail gracefully with a useful message
     if not pdf_text.strip():
-        # Fallback for image-based PDFs (like those generated by html2pdf)
-        from config import settings
-        if not settings.GEMINI_API_KEY:
-            raise HTTPException(status_code=400, detail="No readable text found in PDF. To read image-based PDFs, please add GEMINI_API_KEY in backend/.env.")
-            
-        import tempfile
-        import google.generativeai as genai
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(content)
-                tmp_path = tmp.name
-                
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            sample_file = genai.upload_file(path=tmp_path)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content([sample_file, "Extract all the text from this exam question paper accurately. Preserve all questions, marks, and structure."])
-            pdf_text = response.text
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to read image PDF with Gemini: {e}")
-        finally:
-            if 'tmp_path' in locals() and os.path.exists(tmp_path):
-                os.remove(tmp_path)
-                
-    if not pdf_text.strip():
-        raise HTTPException(status_code=400, detail="No readable text found in PDF, even after AI fallback.")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "This PDF appears to be image-based and cannot be read directly. "
+                "Please upload the original question paper PDF (not a screenshot or scanned copy). "
+                "Our AI-generated papers can be solved directly — try re-downloading and uploading one of those."
+            )
+        )
 
     docs = (
         db.query(Document)
@@ -265,10 +215,10 @@ def solve_uploaded_pdf_paper(
     if not docs:
         raise HTTPException(status_code=404, detail="No ready study documents selected.")
 
-    search_query = pdf_text[:250]
+    # Try ChromaDB, fall back to subject name if empty
     chunks = query_store(
         user_id=current_user.id,
-        query_text=search_query,
+        query_text=pdf_text[:250],
         n_results=5,
         document_ids=document_ids,
     )
@@ -276,25 +226,20 @@ def solve_uploaded_pdf_paper(
     if chunks:
         combined_text = "\n\n".join(c["text"] for c in chunks)
     else:
-        # ChromaDB empty on Vercel — use the question paper itself as context
         doc_names = ", ".join(d.filename for d in docs)
         combined_text = (
-            f"Study materials available: {doc_names}\n"
+            f"Study materials: {doc_names}\n"
             f"Subject: {subject_name}\n"
             f"Answer all questions based on your knowledge of {subject_name}."
         )
-        print(f"[Solve Paper] ChromaDB empty — using subject fallback for: {subject_name}")
 
-    raw_markdown = solve_question_paper(
+    raw_json = solve_question_paper(
         paper_text=pdf_text,
         context=combined_text,
         subject_name=subject_name or "Subject Exam",
     )
 
     return {
-        "solutions": {"raw_markdown": raw_markdown},
+        "solutions": {"raw_markdown": raw_json},
         "documents": [{"id": d.id, "filename": d.filename} for d in docs],
     }
-
-
-
