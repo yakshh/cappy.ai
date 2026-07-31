@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { documentService } from '../services'
 import toast from 'react-hot-toast'
+import { upload } from '@vercel/blob/client'
 
 /**
  * FileUpload — drag-and-drop PDF uploader with progress indicator.
@@ -14,7 +15,7 @@ export default function FileUpload({ onUploadSuccess }) {
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
-      toast.error('Only PDF files up to 15MB are allowed.')
+      toast.error('Only PDF files up to 10MB are allowed.')
     }
     if (acceptedFiles.length > 0) {
       setSelectedFiles(prev => {
@@ -33,8 +34,8 @@ export default function FileUpload({ onUploadSuccess }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
-    maxSize: 15 * 1024 * 1024,
-    multiple: false,
+    maxSize: 10 * 1024 * 1024,
+    multiple: true,
   })
 
   const handleUpload = async () => {
@@ -47,22 +48,30 @@ export default function FileUpload({ onUploadSuccess }) {
       const uploadedDocs = []
       const failedFiles = []
 
-      // Upload each file separately so a large batch does not exceed a hosted
-      // function's request limit and one bad file does not cancel the batch.
+      // Upload each file separately directly to Vercel Blob from the client
       for (const [index, file] of selectedFiles.entries()) {
-        const formData = new FormData()
-        formData.append('files', file)
-
         try {
-          const { data } = await documentService.upload(formData, (progressEvent) => {
-            const fileProgress = progressEvent.total
-              ? progressEvent.loaded / progressEvent.total
-              : 0
-            setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
+          // 1. Upload direct to Vercel Blob
+          const newBlob = await upload(file.name, file, {
+            access: 'public',
+            handleUploadUrl: '/api/upload-token',
+            onUploadProgress: (progressEvent) => {
+              const fileProgress = progressEvent.percentage / 100
+              setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
+            }
           })
-          uploadedDocs.push(...(data.documents || []))
+
+          // 2. Notify backend to process the uploaded blob
+          const { data } = await documentService.uploadBlob({
+            url: newBlob.url,
+            filename: file.name,
+            size: file.size
+          })
+          
+          uploadedDocs.push(data.document)
           setProgress(Math.round(((index + 1) / selectedFiles.length) * 100))
         } catch (error) {
+          console.error(error)
           failedFiles.push(file.name)
         }
       }
@@ -109,7 +118,7 @@ export default function FileUpload({ onUploadSuccess }) {
             <p className="text-sm font-medium text-white">
               {isDragActive ? 'Drop your PDFs here!' : 'Drag & drop your PDFs'}
             </p>
-            <p className="text-xs text-slate-500 mt-1">or click to browse · Max 15 MB</p>
+            <p className="text-xs text-slate-500 mt-1">or click to browse · Max 10 MB</p>
           </div>
         </div>
       </div>

@@ -2,6 +2,10 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/upload-token.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "api/index.py",
       "use": "@vercel/python"
     },
@@ -11,6 +15,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/upload-token",
+      "dest": "api/upload-token.js"
+    },
     {
       "src": "/api/(.*)",
       "dest": "api/index.py"
