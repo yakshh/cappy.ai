@@ -17,7 +17,16 @@ export default function FileUpload({ onUploadSuccess }) {
       toast.error('Only PDF files up to 15MB are allowed.')
     }
     if (acceptedFiles.length > 0) {
-      setSelectedFiles(prev => [...prev, ...acceptedFiles])
+      setSelectedFiles(prev => {
+        const existing = new Set(prev.map(file => `${file.name}:${file.size}:${file.lastModified}`))
+        const nextFiles = acceptedFiles.filter(file => {
+          const key = `${file.name}:${file.size}:${file.lastModified}`
+          if (existing.has(key)) return false
+          existing.add(key)
+          return true
+        })
+        return [...prev, ...nextFiles]
+      })
     }
   }, [])
 
@@ -34,22 +43,43 @@ export default function FileUpload({ onUploadSuccess }) {
     setUploading(true)
     setProgress(0)
 
-    const formData = new FormData()
-    selectedFiles.forEach(file => {
-      formData.append('files', file)
-    })
-
     try {
-      const { data } = await documentService.upload(formData, (progressEvent) => {
-        const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-        setProgress(pct)
-      })
-      toast.success(data.message)
+      const uploadedDocs = []
+      const failedFiles = []
+
+      // Upload each file separately so a large batch does not exceed a hosted
+      // function's request limit and one bad file does not cancel the batch.
+      for (const [index, file] of selectedFiles.entries()) {
+        const formData = new FormData()
+        formData.append('files', file)
+
+        try {
+          const { data } = await documentService.upload(formData, (progressEvent) => {
+            const fileProgress = progressEvent.total
+              ? progressEvent.loaded / progressEvent.total
+              : 0
+            setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
+          })
+          uploadedDocs.push(...(data.documents || []))
+          setProgress(Math.round(((index + 1) / selectedFiles.length) * 100))
+        } catch (error) {
+          failedFiles.push(file.name)
+        }
+      }
+
+      if (uploadedDocs.length === 0) {
+        throw new Error(failedFiles.length ? `Could not upload: ${failedFiles.join(', ')}` : 'No files were uploaded.')
+      }
+
+      toast.success(`${uploadedDocs.length} PDF${uploadedDocs.length === 1 ? '' : 's'} uploaded successfully.`)
+      if (failedFiles.length > 0) {
+        toast.error(`Skipped ${failedFiles.length} file${failedFiles.length === 1 ? '' : 's'}: ${failedFiles.join(', ')}`)
+      }
       setSelectedFiles([])
-      setProgress(0)
-      onUploadSuccess?.(data.documents)
+      setProgress(100)
+      onUploadSuccess?.(uploadedDocs)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Upload failed. Please try again.')
+      toast.error(err.response?.data?.detail || err.message || 'Upload failed. Please try again.')
     } finally {
       setUploading(false)
     }
@@ -77,7 +107,7 @@ export default function FileUpload({ onUploadSuccess }) {
           </div>
           <div>
             <p className="text-sm font-medium text-white">
-              {isDragActive ? 'Drop your PDF here!' : 'Drag & drop your PDF'}
+              {isDragActive ? 'Drop your PDFs here!' : 'Drag & drop your PDFs'}
             </p>
             <p className="text-xs text-slate-500 mt-1">or click to browse · Max 15 MB</p>
           </div>
@@ -116,7 +146,7 @@ export default function FileUpload({ onUploadSuccess }) {
       {uploading && (
         <div className="space-y-2 animate-fade-in">
           <div className="flex justify-between text-xs text-slate-400">
-            <span>Uploading...</span>
+            <span>Uploading PDF {Math.min(selectedFiles.length, Math.floor((progress / 100) * selectedFiles.length) + 1)} of {selectedFiles.length}...</span>
             <span>{progress}%</span>
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -135,7 +165,7 @@ export default function FileUpload({ onUploadSuccess }) {
           id="upload-submit-btn"
           className="btn-primary w-full"
         >
-          Upload PDF{selectedFiles.length > 1 ? 's' : ''}
+          Upload {selectedFiles.length} PDF{selectedFiles.length > 1 ? 's' : ''}
         </button>
       )}
     </div>

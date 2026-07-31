@@ -10,7 +10,6 @@ export const authService = {
 
 export const documentService = {
   upload:  (formData, onProgress) => api.post('/documents/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: onProgress,
   }),
   list:    ()   => api.get('/documents/'),
