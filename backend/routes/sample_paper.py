@@ -89,6 +89,18 @@ def create_sample_paper(
     current_user: User = Depends(get_current_user),
 ):
     """Generate a structured sample question paper from selected documents."""
+    import traceback
+    try:
+        return _create_sample_paper_impl(payload, db, current_user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[Sample Paper CRASH]: {tb}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {type(e).__name__}: {e} | {tb[-300:]}")
+
+
+def _create_sample_paper_impl(payload, db, current_user):
     docs = (
         db.query(Document)
         .filter(
