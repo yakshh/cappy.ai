@@ -3,7 +3,6 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { documentService } from '../services'
 import toast from 'react-hot-toast'
-import { upload } from '@vercel/blob/client'
 
 /**
  * FileUpload — drag-and-drop PDF uploader with progress indicator.
@@ -35,7 +34,7 @@ export default function FileUpload({ onUploadSuccess }) {
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
     maxSize: 15 * 1024 * 1024,
-    multiple: true,
+    multiple: false,
   })
 
   const handleUpload = async () => {
@@ -48,30 +47,22 @@ export default function FileUpload({ onUploadSuccess }) {
       const uploadedDocs = []
       const failedFiles = []
 
-      // Upload each file separately directly to Vercel Blob from the client
+      // Upload each file separately so a large batch does not exceed a hosted
+      // function's request limit and one bad file does not cancel the batch.
       for (const [index, file] of selectedFiles.entries()) {
-        try {
-          // 1. Upload direct to Vercel Blob
-          const newBlob = await upload(file.name, file, {
-            access: 'public',
-            handleUploadUrl: '/api/upload-token',
-            onUploadProgress: (progressEvent) => {
-              const fileProgress = progressEvent.percentage / 100
-              setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
-            }
-          })
+        const formData = new FormData()
+        formData.append('files', file)
 
-          // 2. Notify backend to process the uploaded blob
-          const { data } = await documentService.uploadBlob({
-            url: newBlob.url,
-            filename: file.name,
-            size: file.size
+        try {
+          const { data } = await documentService.upload(formData, (progressEvent) => {
+            const fileProgress = progressEvent.total
+              ? progressEvent.loaded / progressEvent.total
+              : 0
+            setProgress(Math.round(((index + fileProgress) / selectedFiles.length) * 100))
           })
-          
-          uploadedDocs.push(data.document)
+          uploadedDocs.push(...(data.documents || []))
           setProgress(Math.round(((index + 1) / selectedFiles.length) * 100))
         } catch (error) {
-          console.error(error)
           failedFiles.push(file.name)
         }
       }
