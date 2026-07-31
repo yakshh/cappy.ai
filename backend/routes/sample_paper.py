@@ -21,8 +21,11 @@ from rag.generator import generate_sample_paper, solve_question_paper, parse_jso
 
 router = APIRouter(prefix="/api/sample-paper", tags=["Sample Paper"])
 
-USAGE_FILE = "usage.json"
-GENERATED_PAPERS_FILE = "generated_papers.json"
+import os
+
+_TMP = "/tmp" if os.getenv("VERCEL") or os.getenv("VERCEL_ENV") else "."
+USAGE_FILE = os.path.join(_TMP, "usage.json")
+GENERATED_PAPERS_FILE = os.path.join(_TMP, "generated_papers.json")
 
 import uuid
 import re
