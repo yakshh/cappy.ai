@@ -166,6 +166,34 @@ def solve_uploaded_pdf_paper(
     current_user: User = Depends(get_current_user),
 ):
     """Extract text from PDF and generate model solutions."""
+    # ── 7 Papers per Day Limit Check ──────────────────────────────────────
+    today = date.today()
+    from models.paper_solve_usage import PaperSolveUsage
+
+    usage = (
+        db.query(PaperSolveUsage)
+        .filter(
+            PaperSolveUsage.user_id == current_user.id,
+            PaperSolveUsage.solve_date == today,
+        )
+        .first()
+    )
+
+    if usage and usage.solve_count >= 7:
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached! You can solve up to 7 question papers per day. Please try again tomorrow.",
+        )
+
+    if not usage:
+        usage = PaperSolveUsage(user_id=current_user.id, solve_date=today, solve_count=1)
+        db.add(usage)
+    else:
+        usage.solve_count += 1
+
+    db.commit()
+    # ──────────────────────────────────────────────────────────────────────
+
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
 
