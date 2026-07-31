@@ -95,7 +95,37 @@ export default function SamplePaperPage() {
 
     try {
       const { data } = await samplePaperService.solveUpload(formData)
-      setSolutionData(data.solutions)
+      // The backend returns { raw_markdown: "...json string..." }
+      // Parse and convert to readable markdown
+      let solutions = data.solutions
+      let rawContent = typeof solutions === 'string' ? solutions : solutions?.raw_markdown || solutions
+      
+      // Try to parse as JSON and convert to markdown
+      try {
+        let parsed = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent
+        // Handle nested: { solutions: { solutions: [...] } } or { solutions: [...] }
+        if (parsed?.solutions?.solutions) parsed = parsed.solutions
+        if (parsed?.solutions) parsed = parsed
+        
+        const solutionItems = parsed?.solutions || (Array.isArray(parsed) ? parsed : null)
+        if (solutionItems && Array.isArray(solutionItems)) {
+          let md = `# Solutions — ${parsed.subject_name || solveSubjectName}\n\n`
+          for (const q of solutionItems) {
+            md += `## ${q.q_no}\n\n`
+            for (const item of (q.solution_items || [])) {
+              md += `### Part ${item.part} *(${item.marks} marks)*\n\n`
+              if (item.question) md += `**Question:** ${item.question}\n\n`
+              md += `**Answer:** ${item.answer}\n\n---\n\n`
+            }
+          }
+          setSolutionData({ raw_markdown: md })
+        } else {
+          setSolutionData({ raw_markdown: typeof rawContent === 'string' ? rawContent : JSON.stringify(parsed, null, 2) })
+        }
+      } catch {
+        setSolutionData({ raw_markdown: typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2) })
+      }
+      
       toast.success('Question Paper solutions generated!')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Paper solving failed.')
