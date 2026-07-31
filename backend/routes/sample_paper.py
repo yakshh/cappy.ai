@@ -181,16 +181,18 @@ def solve_uploaded_pdf_paper(
             pdf_text = saved_text
             print(f"[Solve] Retrieved generated paper from DB: {paper_id}")
 
-    # 2. Standard pdfplumber text extraction
+    # 2. STANDARD CHECK: If not one of ours, try to extract text normally
     if not pdf_text:
         try:
             with pdfplumber.open(io.BytesIO(content)) as pdf:
                 for page in pdf.pages:
                     ext = page.extract_text()
+                    if not ext:
+                        ext = page.extract_text(layout=True)
                     if ext:
                         pdf_text += ext + "\n"
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Solve] pdfplumber extraction error: {e}")
 
     # 3. If still no text (image-based PDF) — fail gracefully with a useful message
     if not pdf_text.strip():
