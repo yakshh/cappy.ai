@@ -12,7 +12,6 @@ export const documentService = {
   upload:  (formData, onProgress) => api.post('/documents/upload', formData, {
     onUploadProgress: onProgress,
   }),
-  uploadBlob: (data) => api.post('/documents/upload-blob', data),
   list:    ()   => api.get('/documents/'),
   get:     (id) => api.get(`/documents/${id}`),
   delete:  (id) => api.delete(`/documents/${id}`),
@@ -20,9 +19,9 @@ export const documentService = {
 }
 
 export const chatService = {
-  sendMessage:     (data) => api.post('/chat/', data),
-  getConversations: ()    => api.get('/chat/conversations'),
-  getMessages:     (id)   => api.get(`/chat/conversations/${id}/messages`),
+  sendMessage:      (data) => api.post('/chat/', data),
+  getConversations: ()     => api.get('/chat/conversations'),
+  getMessages:      (id)   => api.get(`/chat/conversations/${id}/messages`),
   deleteConversation: (id) => api.delete(`/chat/conversations/${id}`),
 }
 
@@ -43,7 +42,9 @@ export const searchService = {
 }
 
 export const samplePaperService = {
-  generate: (data) => api.post('/sample-paper/', data),
-  solve:    (data) => api.post('/sample-paper/solve', data),
+  generate:    (data)     => api.post('/sample-paper/', data),
+  solveUpload: (formData) => api.post('/sample-paper/solve-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  }),
 }
-
