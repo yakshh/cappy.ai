@@ -538,6 +538,7 @@ STRICT INSTRUCTIONS:
 1. Answer every question and subquestion (e.g. Q.1 (a), (b), (c)) clearly and accurately.
 2. Base explanations on the study context provided below wherever possible.
 3. For numerical or code/diagram questions, provide clear explanations or pseudocode.
+4. The length of the answer MUST be strictly according to the marks of the questions. For a 3 or 4 marks question, write a concise answer. For a 7 marks question, write an extensive and highly detailed answer with deep explanations.
 
 Return a valid JSON object with key "solutions" matching this format:
 {{

@@ -72,73 +72,82 @@ def _process_document(document_id: int, file_path: str, user_id: int, filename: 
 
 # ── Upload endpoint ────────────────────────────────────────────────────────────
 
+from typing import List
+
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_document(
+async def upload_documents(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Upload a PDF and start background processing (extraction + embedding)."""
-    # Validate file type
-    suffix = Path(file.filename).suffix.lower()
-    if suffix not in settings.ALLOWED_EXTENSIONS:
+    """Upload PDFs and start background processing (extraction + embedding)."""
+    uploaded_docs = []
+
+    for file in files:
+        # Validate file type
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in settings.ALLOWED_EXTENSIONS:
+            continue
+
+        # Read file content
+        content = await file.read()
+
+        # Validate file size
+        if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
+            continue
+
+        # Save file with UUID name to prevent collisions
+        stored_name = f"{uuid.uuid4().hex}{suffix}"
+        user_upload_dir = settings.UPLOAD_DIR / str(current_user.id)
+        user_upload_dir.mkdir(parents=True, exist_ok=True)
+        file_path = user_upload_dir / stored_name
+
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # Create DB record
+        doc = Document(
+            user_id=current_user.id,
+            filename=file.filename,
+            stored_filename=stored_name,
+            file_path=str(file_path),
+            file_size=len(content),
+            status="processing",
+            category="General",
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+
+        # Queue background processing
+        background_tasks.add_task(
+            _process_document,
+            doc.id,
+            str(file_path),
+            current_user.id,
+            file.filename,
+            settings.DATABASE_URL,
+        )
+
+        uploaded_docs.append({
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_size": doc.file_size,
+            "status": doc.status,
+            "category": doc.category or "General",
+            "created_at": doc.created_at.isoformat(),
+        })
+
+    if not uploaded_docs:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only PDF files are allowed.",
+            detail="No valid PDF files were uploaded.",
         )
-
-    # Read file content
-    content = await file.read()
-
-    # Validate file size
-    if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds the {settings.MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB limit.",
-        )
-
-    # Save file with UUID name to prevent collisions
-    stored_name = f"{uuid.uuid4().hex}{suffix}"
-    user_upload_dir = settings.UPLOAD_DIR / str(current_user.id)
-    user_upload_dir.mkdir(parents=True, exist_ok=True)
-    file_path = user_upload_dir / stored_name
-
-    with open(file_path, "wb") as f:
-        f.write(content)
-
-    # Create DB record
-    doc = Document(
-        user_id=current_user.id,
-        filename=file.filename,
-        stored_filename=stored_name,
-        file_path=str(file_path),
-        file_size=len(content),
-        status="processing",
-        category="General",
-    )
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
-
-    # Queue background processing
-    background_tasks.add_task(
-        _process_document,
-        doc.id,
-        str(file_path),
-        current_user.id,
-        file.filename,
-        settings.DATABASE_URL,
-    )
 
     return {
-        "id": doc.id,
-        "filename": doc.filename,
-        "file_size": doc.file_size,
-        "status": doc.status,
-        "category": doc.category or "General",
-        "created_at": doc.created_at.isoformat(),
-        "message": "Document uploaded. Processing started in background.",
+        "message": f"{len(uploaded_docs)} document(s) uploaded. Processing started in background.",
+        "documents": uploaded_docs
     }
 
 

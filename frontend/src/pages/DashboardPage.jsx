@@ -38,15 +38,14 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const handleUploadSuccess = (newDoc) => {
-    setDocuments((prev) => [newDoc, ...prev])
+  const handleUploadSuccess = (newDocs) => {
+    setDocuments((prev) => [...newDocs, ...prev])
     setShowUpload(false)
   }
 
   const handleDelete = (docId) => {
     setDocuments((prev) => prev.filter((d) => d.id !== docId))
   }
-
   const readyDocs = documents.filter((d) => d.status === 'ready').length
   const processingDocs = documents.filter((d) => d.status === 'processing').length
   const firstName = user?.full_name?.split(' ')[0] || 'User'

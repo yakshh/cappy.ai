@@ -10,15 +10,14 @@ import toast from 'react-hot-toast'
 export default function FileUpload({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [selectedFile, setSelectedFile] = useState(null)
+  const [selectedFiles, setSelectedFiles] = useState([])
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
       toast.error('Only PDF files up to 15MB are allowed.')
-      return
     }
     if (acceptedFiles.length > 0) {
-      setSelectedFile(acceptedFiles[0])
+      setSelectedFiles(prev => [...prev, ...acceptedFiles])
     }
   }, [])
 
@@ -26,27 +25,29 @@ export default function FileUpload({ onUploadSuccess }) {
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
     maxSize: 15 * 1024 * 1024,
-    multiple: false,
+    multiple: true,
   })
 
   const handleUpload = async () => {
-    if (!selectedFile) return
+    if (selectedFiles.length === 0) return
 
     setUploading(true)
     setProgress(0)
 
     const formData = new FormData()
-    formData.append('file', selectedFile)
+    selectedFiles.forEach(file => {
+      formData.append('files', file)
+    })
 
     try {
       const { data } = await documentService.upload(formData, (progressEvent) => {
         const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total)
         setProgress(pct)
       })
-      toast.success(`"${data.filename}" uploaded! Processing in background...`)
-      setSelectedFile(null)
+      toast.success(data.message)
+      setSelectedFiles([])
       setProgress(0)
-      onUploadSuccess?.(data)
+      onUploadSuccess?.(data.documents)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Upload failed. Please try again.')
     } finally {
@@ -84,23 +85,30 @@ export default function FileUpload({ onUploadSuccess }) {
       </div>
 
       {/* Selected file preview */}
-      {selectedFile && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 animate-fade-in">
-          <div className="w-9 h-9 rounded-lg bg-brand-500/20 flex items-center justify-center flex-shrink-0">
-            <FileText size={16} className="text-brand-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{selectedFile.name}</p>
-            <p className="text-xs text-slate-500">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-          </div>
-          {!uploading && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setSelectedFile(null) }}
-              className="text-slate-500 hover:text-rose-400 transition-colors"
-            >
-              <X size={16} />
-            </button>
-          )}
+      {selectedFiles.length > 0 && (
+        <div className="space-y-2">
+          {selectedFiles.map((file, idx) => (
+            <div key={idx} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 animate-fade-in">
+              <div className="w-9 h-9 rounded-lg bg-brand-500/20 flex items-center justify-center flex-shrink-0">
+                <FileText size={16} className="text-brand-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{file.name}</p>
+                <p className="text-xs text-slate-500">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+              </div>
+              {!uploading && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedFiles(prev => prev.filter((_, i) => i !== idx))
+                  }}
+                  className="text-slate-500 hover:text-rose-400 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -121,13 +129,13 @@ export default function FileUpload({ onUploadSuccess }) {
       )}
 
       {/* Upload button */}
-      {selectedFile && !uploading && (
+      {selectedFiles.length > 0 && !uploading && (
         <button
           onClick={handleUpload}
           id="upload-submit-btn"
           className="btn-primary w-full"
         >
-          Upload PDF
+          Upload PDF{selectedFiles.length > 1 ? 's' : ''}
         </button>
       )}
     </div>

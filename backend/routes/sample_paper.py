@@ -84,6 +84,25 @@ def create_sample_paper(
 
     try:
         paper_data = parse_json_robust(raw_json)
+        
+        # Build raw markdown if not present
+        if "raw_markdown" not in paper_data and "questions" in paper_data:
+            md = []
+            if "instructions" in paper_data:
+                md.append("**Instructions:**")
+                for inst in paper_data["instructions"]:
+                    md.append(f"- {inst}")
+                md.append("\n---")
+            for q in paper_data["questions"]:
+                md.append(f"\n### {q.get('q_no', '')}")
+                for item in q.get("items", []):
+                    md.append(f"**{item.get('part', '')}** {item.get('question', '')} *(Marks: {item.get('marks', '')})*")
+                if q.get("or_items"):
+                    md.append("\n**OR**\n")
+                    for item in q["or_items"]:
+                        md.append(f"**{item.get('part', '')}** {item.get('question', '')} *(Marks: {item.get('marks', '')})*")
+            paper_data["raw_markdown"] = "\n\n".join(md)
+            
     except Exception as e:
         print(f"[Sample Paper Error]: {e} | Raw output: {raw_json[:200]}")
         raise HTTPException(status_code=500, detail="AI returned invalid sample paper format. Please try again.")
@@ -136,6 +155,24 @@ def solve_uploaded_paper(
 
     try:
         solution_data = parse_json_robust(raw_json)
+        
+        if isinstance(solution_data, dict) and "solutions" in solution_data and "raw_markdown" not in solution_data:
+            md = []
+            for sol in solution_data["solutions"]:
+                md.append(f"### {sol.get('q_no', '')}")
+                for item in sol.get("solution_items", []):
+                    md.append(f"**{item.get('part', '')}** {item.get('question', '')} *(Marks: {item.get('marks', '')})*")
+                    md.append(f"\n**Answer:**\n{item.get('answer', '')}\n")
+            solution_data["raw_markdown"] = "\n".join(md)
+        elif isinstance(solution_data, list):
+            md = []
+            for sol in solution_data:
+                md.append(f"### {sol.get('q_no', '')}")
+                for item in sol.get("solution_items", []):
+                    md.append(f"**{item.get('part', '')}** {item.get('question', '')} *(Marks: {item.get('marks', '')})*")
+                    md.append(f"\n**Answer:**\n{item.get('answer', '')}\n")
+            solution_data = {"solutions": solution_data, "raw_markdown": "\n".join(md)}
+            
     except Exception as e:
         print(f"[Solve Paper Error]: {e} | Raw output: {raw_json[:200]}")
         raise HTTPException(status_code=500, detail="AI returned invalid solution format. Please try again.")
