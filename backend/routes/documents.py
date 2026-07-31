@@ -54,7 +54,22 @@ def _process_document(document_id: int, file_path: str, user_id: int, filename: 
         # 2. Chunk text
         chunks = chunk_pages(pages)
 
-        # 3. Store embeddings in ChromaDB
+        # 3. Save chunks to PostgreSQL DB for permanent search
+        from models.document_chunk import DocumentChunk
+        # Delete existing chunks for this document if re-processing
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+        for c in chunks:
+            chunk_rec = DocumentChunk(
+                document_id=document_id,
+                user_id=user_id,
+                document_name=filename,
+                page=c.get("page", 1),
+                chunk_index=c.get("chunk_index", 0),
+                text=c.get("text", ""),
+            )
+            db.add(chunk_rec)
+
+        # 4. Store embeddings in ChromaDB
         stored = add_chunks_to_store(
             user_id=user_id,
             document_id=document_id,

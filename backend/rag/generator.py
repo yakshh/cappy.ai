@@ -115,6 +115,7 @@ def _call_groq(prompt: str, response_json: bool = False) -> str:
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.75,
+        "max_tokens": 6000,
     }
     if response_json:
         payload["response_format"] = {"type": "json_object"}
@@ -531,14 +532,18 @@ def solve_question_paper(
     Generate step-by-step model solutions for an uploaded question paper grounded in study materials.
     Returns JSON structure.
     """
-    prompt = f"""You are a master university professor and exam evaluator for '{subject_name}'.
-Your task is to provide complete, thorough, step-by-step solutions for every question in the question paper below.
+    prompt = f"""You are a senior university professor and head examiner for '{subject_name}'.
+Your task is to provide complete, highly accurate model solutions for EVERY question in the question paper below.
 
-STRICT INSTRUCTIONS:
-1. Answer every question and subquestion (e.g. Q.1 (a), (b), (c)) clearly and accurately.
-2. Base explanations on the study context provided below wherever possible.
-3. For numerical or code/diagram questions, provide clear explanations or pseudocode.
-4. The length of the answer MUST be strictly according to the marks of the questions. For a 3 or 4 marks question, write a concise answer. For a 7 marks question, write an extensive and highly detailed answer with deep explanations.
+CRITICAL ANSWER LENGTH & MARK-BASED RULES (STRICTLY ENFORCE):
+1. **3 MARKS QUESTIONS**: Write a concise, focused answer of 50 to 90 words. Use 3 to 4 clear bullet points or a short direct explanation.
+2. **4 MARKS QUESTIONS**: Write a medium-length answer of 130 to 190 words. Include a clear definition, 4 to 5 detailed bullet points, key technical terms, or a quick code/block-diagram overview.
+3. **7 MARKS QUESTIONS**: Write an EXTENSIVE, IN-DEPTH, AND COMPREHENSIVE academic answer of 350 to 550 words. Divide into bold section headings (e.g. ## Overview, ## Working Mechanism / Architecture, ## Key Components, ## Step-by-Step Example / Code / Diagram, ## Advantages & Applications). Provide complete, exhaustive explanations with full details so a student gets full 7/7 marks.
+
+GENERAL INSTRUCTIONS:
+- Answer every question and subquestion (e.g. Q.1 (a), (b), (c)) clearly and accurately.
+- Base explanations on the study context provided below wherever possible.
+- For technical/numerical/diagram questions, provide clear text ASCII/block diagrams or pseudocode/code snippets.
 
 Return a valid JSON object with key "solutions" matching this format:
 {{
@@ -551,7 +556,19 @@ Return a valid JSON object with key "solutions" matching this format:
           "part": "(a)",
           "question": "Subquestion text...",
           "marks": 3,
-          "answer": "Comprehensive step-by-step model answer..."
+          "answer": "Concise 3-mark model answer (50-90 words)..."
+        }},
+        {{
+          "part": "(b)",
+          "question": "Subquestion text...",
+          "marks": 4,
+          "answer": "Medium 4-mark model answer (130-190 words)..."
+        }},
+        {{
+          "part": "(c)",
+          "question": "Subquestion text...",
+          "marks": 7,
+          "answer": "Extensive 7-mark model answer (350-550 words with headings and full details)..."
         }}
       ]
     }}
@@ -559,10 +576,10 @@ Return a valid JSON object with key "solutions" matching this format:
 }}
 
 STUDY CONTEXT FROM NOTES:
-{context[:4000]}
+{context[:5000]}
 
 QUESTION PAPER TO SOLVE:
-{paper_text[:3500]}
+{paper_text[:4000]}
 
 JSON OUTPUT:"""
 

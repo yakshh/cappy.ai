@@ -6,5 +6,6 @@ from .user import User
 from .document import Document
 from .conversation import Conversation, Message
 from .generated_paper import GeneratedPaper
+from .document_chunk import DocumentChunk
 
-__all__ = ["User", "Document", "Conversation", "Message", "GeneratedPaper"]
+__all__ = ["User", "Document", "Conversation", "Message", "GeneratedPaper", "DocumentChunk"]
