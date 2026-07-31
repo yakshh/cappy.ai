@@ -150,19 +150,20 @@ async def upload_documents(
         "documents": uploaded_docs
     }
 
+from pydantic import BaseModel
+
 class BlobUploadRequest(BaseModel):
     url: str
     filename: str
     size: int
 
 @router.post("/upload-blob", status_code=status.HTTP_201_CREATED)
-async def upload_blob(
+def upload_blob(
     payload: BlobUploadRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Process a PDF that was uploaded directly to Vercel Blob by the frontend."""
     import urllib.request
     
     # Validate file type
@@ -177,7 +178,9 @@ async def upload_blob(
     file_path = user_upload_dir / stored_name
 
     try:
-        urllib.request.urlretrieve(payload.url, str(file_path))
+        req = urllib.request.Request(payload.url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        with urllib.request.urlopen(req) as response, open(file_path, 'wb') as out_file:
+            out_file.write(response.read())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download blob: {e}")
 
