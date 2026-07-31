@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FileText, Folder, ChevronDown, ChevronRight, CheckSquare, Square } from 'lucide-react'
 
-export default function CategoryDocumentSelector({ documents, selectedIds, onToggleDoc, onToggleCategory }) {
+export default function CategoryDocumentSelector({ documents, selectedIds, onToggleDoc, onSelectAll }) {
   const [collapsedCategories, setCollapsedCategories] = useState({})
 
   // Group documents by category
@@ -14,6 +14,14 @@ export default function CategoryDocumentSelector({ documents, selectedIds, onTog
 
   const toggleCollapse = (cat) => {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
+  }
+
+  const handleToggleCategory = (catDocIds, select) => {
+    if (select) {
+      onSelectAll(Array.from(new Set([...selectedIds, ...catDocIds])))
+    } else {
+      onSelectAll(selectedIds.filter(id => !catDocIds.includes(id)))
+    }
   }
 
   return (
@@ -37,7 +45,7 @@ export default function CategoryDocumentSelector({ documents, selectedIds, onTog
               {/* Master Select All Checkbox for Category */}
               <button
                 type="button"
-                onClick={() => onToggleCategory(catDocIds, !allSelected)}
+                onClick={() => handleToggleCategory(catDocIds, !allSelected)}
                 className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-white font-medium"
               >
                 {allSelected ? <CheckSquare size={13} className="text-brand-400" /> : <Square size={13} className="text-slate-500" />}

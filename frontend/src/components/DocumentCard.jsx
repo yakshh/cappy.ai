@@ -30,7 +30,7 @@ export default function DocumentCard({ doc, existingCategories = [], onDelete, o
   const [newCatInput, setNewCatInput] = useState('')
 
   // Build clean unique category options list
-  const defaultCats = ['General', 'IoT', 'Machine Learning', 'Digital Systems', 'Computer Networks']
+  const defaultCats = ['General']
   const allCatOptions = Array.from(new Set([...defaultCats, ...existingCategories])).filter(Boolean)
 
   const handleDelete = async () => {
