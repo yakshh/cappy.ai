@@ -101,6 +101,7 @@ def create_sample_paper(
     if not docs:
         raise HTTPException(status_code=404, detail="No ready documents found.")
 
+    # Try to get content from ChromaDB (may be empty on Vercel due to ephemeral /tmp)
     search_query = f"{payload.subject_name} key concepts principles applications architectures algorithms protocols security"
     chunks = query_store(
         user_id=current_user.id,
@@ -109,10 +110,19 @@ def create_sample_paper(
         document_ids=payload.document_ids,
     )
 
-    if not chunks:
-        raise HTTPException(status_code=404, detail="No content found in selected documents.")
+    if chunks:
+        combined_text = "\n\n".join(c["text"] for c in chunks)
+    else:
+        # ChromaDB is empty (ephemeral serverless env) — generate using doc filenames + subject info
+        doc_names = ", ".join(d.filename for d in docs)
+        combined_text = (
+            f"Subject: {payload.subject_name} (Code: {payload.subject_code})\n"
+            f"Study Materials: {doc_names}\n"
+            f"Generate a comprehensive {payload.total_marks}-mark university examination paper "
+            f"covering all major topics of {payload.subject_name}."
+        )
+        print(f"[Sample Paper] ChromaDB empty — using subject metadata fallback for: {payload.subject_name}")
 
-    combined_text = "\n\n".join(c["text"] for c in chunks)
     try:
         raw_json = generate_sample_paper(
             text=combined_text,
@@ -126,7 +136,7 @@ def create_sample_paper(
         print(f"[Sample Paper Generation Error]: {e}")
         raise HTTPException(
             status_code=503,
-            detail="AI generation is unavailable. Add a valid GROQ_API_KEY or GEMINI_API_KEY in Vercel and redeploy.",
+            detail=f"AI generation failed: {e}",
         )
 
     try:
@@ -248,10 +258,18 @@ def solve_uploaded_pdf_paper(
         document_ids=document_ids,
     )
 
-    if not chunks:
-        raise HTTPException(status_code=404, detail="No content found in selected study documents.")
+    if chunks:
+        combined_text = "\n\n".join(c["text"] for c in chunks)
+    else:
+        # ChromaDB empty on Vercel — use the question paper itself as context
+        doc_names = ", ".join(d.filename for d in docs)
+        combined_text = (
+            f"Study materials available: {doc_names}\n"
+            f"Subject: {subject_name}\n"
+            f"Answer all questions based on your knowledge of {subject_name}."
+        )
+        print(f"[Solve Paper] ChromaDB empty — using subject fallback for: {subject_name}")
 
-    combined_text = "\n\n".join(c["text"] for c in chunks)
     raw_markdown = solve_question_paper(
         paper_text=pdf_text,
         context=combined_text,
