@@ -12,6 +12,7 @@ export const documentService = {
   upload:  (formData, onProgress) => api.post('/documents/upload', formData, {
     onUploadProgress: onProgress,
   }),
+  uploadBlob: (data) => api.post('/documents/upload-blob', data),
   list:    ()   => api.get('/documents/'),
   get:     (id) => api.get(`/documents/${id}`),
   delete:  (id) => api.delete(`/documents/${id}`),

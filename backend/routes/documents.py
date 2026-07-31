@@ -150,6 +150,73 @@ async def upload_documents(
         "documents": uploaded_docs
     }
 
+class BlobUploadRequest(BaseModel):
+    url: str
+    filename: str
+    size: int
+
+@router.post("/upload-blob", status_code=status.HTTP_201_CREATED)
+async def upload_blob(
+    payload: BlobUploadRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Process a PDF that was uploaded directly to Vercel Blob by the frontend."""
+    import urllib.request
+    
+    # Validate file type
+    suffix = Path(payload.filename).suffix.lower()
+    if suffix not in settings.ALLOWED_EXTENSIONS:
+         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+         
+    # Save file locally from the blob URL
+    stored_name = f"{uuid.uuid4().hex}{suffix}"
+    user_upload_dir = settings.UPLOAD_DIR / str(current_user.id)
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = user_upload_dir / stored_name
+
+    try:
+        urllib.request.urlretrieve(payload.url, str(file_path))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download blob: {e}")
+
+    # Create DB record
+    doc = Document(
+        user_id=current_user.id,
+        filename=payload.filename,
+        stored_filename=stored_name,
+        file_path=str(file_path),
+        file_size=payload.size,
+        status="processing",
+        category="General",
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    # Queue background processing
+    background_tasks.add_task(
+        _process_document,
+        doc.id,
+        str(file_path),
+        current_user.id,
+        payload.filename,
+        settings.DATABASE_URL,
+    )
+
+    return {
+        "message": "Document uploaded successfully. Processing started in background.",
+        "document": {
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_size": doc.file_size,
+            "status": doc.status,
+            "category": doc.category,
+            "created_at": doc.created_at.isoformat(),
+        }
+    }
+
 
 # ── List documents ─────────────────────────────────────────────────────────────
 
