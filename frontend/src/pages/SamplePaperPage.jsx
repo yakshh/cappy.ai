@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { samplePaperService, documentService } from '../services'
 import LoadingSpinner from '../components/LoadingSpinner'
 import CategoryDocumentSelector from '../components/CategoryDocumentSelector'
-import { FileSpreadsheet, FileText, Download, Printer, Sparkles, Upload, BookOpen, Building, Hash, Calendar } from 'lucide-react'
+import { FileSpreadsheet, Download, Printer, Sparkles, Upload, BookOpen, Building, Hash, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -19,8 +19,11 @@ export default function SamplePaperPage() {
   const [examTerm, setExamTerm] = useState('')
 
   // Solve mode state
-  const [solvePaperText, setSolvePaperText] = useState('')
+  const [solvePaperFile, setSolvePaperFile] = useState(null)
+  const [solveUniversityName, setSolveUniversityName] = useState('')
+  const [solveSubjectCode, setSolveSubjectCode] = useState('')
   const [solveSubjectName, setSolveSubjectName] = useState('')
+  const [solveExamTerm, setSolveExamTerm] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [loadingDocs, setLoadingDocs] = useState(true)
@@ -44,16 +47,20 @@ export default function SamplePaperPage() {
       toast.error('Select at least one study document.')
       return
     }
+    if (!universityName.trim() || !subjectCode.trim() || !subjectName.trim() || !examTerm.trim()) {
+      toast.error('Please fill in all Paper Header Details.')
+      return
+    }
     setLoading(true)
     setPaperData(null)
 
     try {
       const { data } = await samplePaperService.generate({
         document_ids: selectedIds,
-        university_name: universityName.trim() || undefined,
-        subject_code: subjectCode.trim() || '3160716',
-        subject_name: subjectName.trim() || 'IOT and Applications',
-        exam_term: examTerm.trim() || 'SUMMER 2024',
+        university_name: universityName.trim(),
+        subject_code: subjectCode.trim(),
+        subject_name: subjectName.trim(),
+        exam_term: examTerm.trim(),
         total_marks: 70,
       })
       setPaperData(data.paper)
@@ -70,19 +77,24 @@ export default function SamplePaperPage() {
       toast.error('Select at least one study document.')
       return
     }
-    if (!solvePaperText.trim()) {
-      toast.error('Paste or upload question paper text to solve.')
+    if (!solvePaperFile) {
+      toast.error('Please upload a PDF question paper to solve.')
+      return
+    }
+    if (!solveSubjectCode.trim() || !solveSubjectName.trim()) {
+      toast.error('Please fill in both Subject Code and Subject Name.')
       return
     }
     setLoading(true)
     setSolutionData(null)
 
+    const formData = new FormData()
+    formData.append('file', solvePaperFile)
+    selectedIds.forEach((id) => formData.append('document_ids', id))
+    formData.append('subject_name', solveSubjectName.trim())
+
     try {
-      const { data } = await samplePaperService.solve({
-        document_ids: selectedIds,
-        paper_text: solvePaperText.trim(),
-        subject_name: solveSubjectName.trim() || 'Subject Exam',
-      })
+      const { data } = await samplePaperService.solveUpload(formData)
       setSolutionData(data.solutions)
       toast.success('Question Paper solutions generated!')
     } catch (err) {
@@ -95,12 +107,12 @@ export default function SamplePaperPage() {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (evt) => {
-      setSolvePaperText(evt.target?.result || '')
-      toast.success(`Loaded question paper text from "${file.name}"`)
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a valid PDF file.')
+      return
     }
-    reader.readAsText(file)
+    setSolvePaperFile(file)
+    toast.success(`Selected "${file.name}"`)
   }
 
   const handlePrint = () => {
@@ -113,9 +125,15 @@ export default function SamplePaperPage() {
 
     toast.loading('Generating PDF document...', { id: 'pdf-toast' })
 
+    const sCode = (mode === 'solve' ? solveSubjectCode : subjectCode).trim().replace(/\s+/g, '_') || 'CODE'
+    const sName = (mode === 'solve' ? solveSubjectName : subjectName).trim().replace(/\s+/g, '_') || 'Subject'
+    const fName = mode === 'solve' 
+      ? `Solved_Paper_${sCode}_${sName}.pdf` 
+      : `Sample_Paper_${sCode}_${sName}_ID-${paperData?.paper_id || 'manual'}.pdf`
+
     const opt = {
       margin: [10, 10, 10, 10],
-      filename: mode === 'solve' ? 'Question_Paper_Solutions.pdf' : `Sample_Paper_${paperData?.subject_code || 'Exam'}.pdf`,
+      filename: fName,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -192,19 +210,31 @@ export default function SamplePaperPage() {
         ) : (
           <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 className="font-display" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Question Paper Input</h3>
+              <h3 className="font-display" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Upload Question Paper</h3>
               <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', gap: 4 }}>
-                <Upload size={11} /> Upload File
-                <input type="file" accept=".txt,.md" onChange={handleFileUpload} className="hidden" />
+                <Upload size={11} /> Browse PDF
+                <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
               </label>
+            </div>
+            <div style={{ background: 'var(--surface2)', border: '1px dashed var(--border)', padding: 12, borderRadius: 8, textAlign: 'center', marginBottom: 6 }}>
+              {solvePaperFile ? (
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{solvePaperFile.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Ready to solve</div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--text3)' }}>No PDF uploaded yet.</div>
+              )}
+            </div>
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)', marginBottom: 5 }}>
+                <Hash size={11} /> Code
+              </label>
+              <input className="input" placeholder="3160716" value={solveSubjectCode} onChange={(e) => setSolveSubjectCode(e.target.value)} />
             </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)', display: 'block', marginBottom: 5 }}>Subject Name</label>
               <input className="input" placeholder="e.g. Internet of Things" value={solveSubjectName} onChange={(e) => setSolveSubjectName(e.target.value)} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)', display: 'block', marginBottom: 5 }}>Paste Questions Text</label>
-              <textarea className="input" style={{ resize: 'vertical', minHeight: 90 }} placeholder="Q.1 Explain MQTT architecture (7 marks)..." value={solvePaperText} onChange={(e) => setSolvePaperText(e.target.value)} />
             </div>
           </div>
         )}
@@ -264,7 +294,7 @@ export default function SamplePaperPage() {
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: (paperData || solutionData) ? '#ffffff' : 'transparent' }}>
           {/* Empty state */}
           {!paperData && !solutionData && !loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10, textAlign: 'center' }}>
@@ -294,40 +324,48 @@ export default function SamplePaperPage() {
 
           {/* Printable Generated Paper View */}
           {!loading && paperData && mode === 'generate' && (
-            <div id="printable-sample-paper" className="prose-dark anim-in" style={{ padding: 12, background: 'var(--surface)', color: 'var(--text)' }}>
-              <div style={{ textAlign: 'center', borderBottom: '2px solid var(--border)', paddingBottom: 12, marginBottom: 16 }}>
-                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
-                  {paperData.university_name || 'GUJARAT TECHNOLOGICAL UNIVERSITY'}
+            <div id="printable-sample-paper" className="anim-in" style={{ padding: '20px 40px', color: '#000000', backgroundColor: '#ffffff', fontFamily: 'serif' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #000000', paddingBottom: 12, marginBottom: 20 }}>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, textTransform: 'uppercase' }}>
+                  {universityName}
                 </h2>
-                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginTop: 4 }}>
-                  {paperData.subject_name || 'Subject Exam'} ({paperData.subject_code || 'CODE'})
+                <p style={{ fontSize: 16, fontWeight: 600, marginTop: 6, marginBottom: 10 }}>
+                  {subjectName} ({subjectCode})
                 </p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text3)', marginTop: 8 }}>
-                  <span>Term: {paperData.exam_term || 'SUMMER 2024'}</span>
-                  <span>Total Marks: {paperData.total_marks || 70}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600 }}>
+                  <span>Term: {examTerm}</span>
+                  <span>Total Marks: 70</span>
                 </div>
               </div>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{paperData.raw_markdown || paperData.content}</ReactMarkdown>
+              <div style={{ fontSize: 15, lineHeight: 1.6 }} className="markdown-pdf-body">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{paperData.raw_markdown || paperData.content}</ReactMarkdown>
+              </div>
             </div>
           )}
 
           {/* Printable Solutions View */}
           {!loading && solutionData && mode === 'solve' && (
-            <div id="printable-solution-paper" className="prose-dark anim-in" style={{ padding: 12, background: 'var(--surface)', color: 'var(--text)' }}>
-              <div style={{ borderBottom: '2px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
-                <span className="tag tag-accent" style={{ fontSize: 10, marginBottom: 4 }}>Model Solutions</span>
-                <h2 className="font-display" style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
-                  Solutions for {solveSubjectName || 'Exam Paper'}
+            <div id="printable-solution-paper" className="anim-in" style={{ padding: '20px 40px', color: '#000000', backgroundColor: '#ffffff', fontFamily: 'serif' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #000000', paddingBottom: 12, marginBottom: 20 }}>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, textTransform: 'uppercase' }}>
+                  Solutions for {solveSubjectName} ({solveSubjectCode})
                 </h2>
+                <p style={{ fontSize: 14, marginTop: 6, fontStyle: 'italic' }}>AI-Generated Model Answers</p>
               </div>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof solutionData === 'string' ? solutionData : solutionData.raw_markdown}</ReactMarkdown>
+              <div style={{ fontSize: 15, lineHeight: 1.6 }} className="markdown-pdf-body">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof solutionData === 'string' ? solutionData : solutionData.raw_markdown}</ReactMarkdown>
+              </div>
             </div>
           )}
         </div>
 
       </div>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}
+      .markdown-pdf-body h1, .markdown-pdf-body h2, .markdown-pdf-body h3 { font-family: serif; color: #000; margin-top: 1.5em; margin-bottom: 0.5em; }
+      .markdown-pdf-body p { margin-bottom: 1em; }
+      .markdown-pdf-body strong { font-weight: 700; }
+      `}</style>
     </div>
   )
 }
