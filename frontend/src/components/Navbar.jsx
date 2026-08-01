@@ -50,7 +50,7 @@ export default function Navbar() {
             </span>
           </div>
           <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 500, letterSpacing: '0.04em' }}>
-            Study Intelligence
+            Study Intelligence Platform
           </div>
         </div>
       </NavLink>
