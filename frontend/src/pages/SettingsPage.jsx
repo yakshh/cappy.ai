@@ -1,19 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { authService } from '../services'
 import { useTheme } from '../context/ThemeContext'
 import {
-  User, Mail, Lock, Save, GraduationCap,
-  Moon, Sun, Bell, Shield, CheckCircle,
-  Eye, EyeOff, Palette
+  User, Mail, Save, GraduationCap,
+  Moon, Sun, Shield, CheckCircle,
+  Eye, EyeOff, Palette, Info,
+  Sparkles, BookOpen, Search, FileText,
+  Layers, ShieldCheck, Cpu
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TABS = [
-  { id: 'profile',   icon: User,     label: 'Profile'            },
-  { id: 'security',  icon: Shield,   label: 'Security'           },
-  { id: 'prefs',     icon: Bell,     label: 'Appearance & Theme' },
-  { id: 'notifications', icon: Bell, label: 'Notifications' },
+  { id: 'profile',  icon: User,     label: 'Profile'            },
+  { id: 'security', icon: Shield,   label: 'Security'           },
+  { id: 'prefs',    icon: Palette,  label: 'Appearance & Theme' },
+  { id: 'about',    icon: Info,     label: 'About cappy.ai'     },
 ]
 
 export default function SettingsPage() {
@@ -31,11 +33,6 @@ export default function SettingsPage() {
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' })
   const [changingPwd, setChangingPwd] = useState(false)
   const [showPass, setShowPass] = useState(false)
-
-  // Notification settings are local UI preferences; no secrets are displayed.
-  const [docNotifications, setDocNotifications] = useState(localStorage.getItem('pref-doc-notifications') !== 'false')
-  const [autoRefresh, setAutoRefresh] = useState(localStorage.getItem('pref-auto-refresh') !== 'false')
-  const [weeklyDigest, setWeeklyDigest] = useState(localStorage.getItem('pref-weekly-digest') === 'true')
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { toast.error('Name cannot be empty.'); return }
@@ -69,13 +66,6 @@ export default function SettingsPage() {
     } finally {
       setChangingPwd(false)
     }
-  }
-
-  const handleSaveNotifications = () => {
-    localStorage.setItem('pref-doc-notifications', String(docNotifications))
-    localStorage.setItem('pref-auto-refresh', String(autoRefresh))
-    localStorage.setItem('pref-weekly-digest', String(weeklyDigest))
-    toast.success('Notification settings updated successfully!')
   }
 
   const Label = ({ children }) => (
@@ -287,31 +277,81 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Notifications Tab */}
-        {tab === 'notifications' && (
-          <div className="card anim-in" style={{ padding: 24 }}>
-            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Notification Settings</h2>
-            <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 18 }}>Control helpful app updates. API keys and private credentials are never shown here.</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {[
-                ['Document Processing Toasts', 'Show alerts when uploaded PDFs finish indexing.', docNotifications, setDocNotifications],
-                ['Dashboard Auto-refresh', 'Refresh document status automatically while you work.', autoRefresh, setAutoRefresh],
-                ['Weekly Learning Summary', 'Keep a local preference for a weekly progress reminder.', weeklyDigest, setWeeklyDigest],
-              ].map(([label, description, enabled, setter]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text2)' }}>{description}</div>
-                  </div>
-                  <button type="button" onClick={() => setter(!enabled)} className={`toggle ${enabled ? 'on' : ''}`} aria-label={`Toggle ${label}`} />
-                </div>
-              ))}
+        {/* About cappy.ai Tab */}
+        {tab === 'about' && (
+          <div className="card anim-in" style={{ padding: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: 12, background: 'var(--accent-dim)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)'
+              }}>
+                <GraduationCap size={24} />
+              </div>
+              <div>
+                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                  About cappy.ai
+                </h2>
+                <p style={{ fontSize: 12, color: 'var(--text2)', margin: 0, marginTop: 2 }}>
+                  Your RAG-Powered AI Study Intelligence Platform
+                </p>
+              </div>
             </div>
 
-            <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleSaveNotifications}>
-              <Save size={14} /> Save Notification Settings
-            </button>
+            <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 20 }}>
+              <strong style={{ color: 'var(--text)' }}>cappy.ai</strong> is an advanced AI learning assistant designed specifically for university students. By uploading your course PDFs, textbook units, and lecture notes, cappy.ai indexes your materials using Retrieval-Augmented Generation (RAG) to provide grounded answers, exam paper generation, and model solutions without hallucinations.
+            </p>
+
+            {/* Feature Cards Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                  <Sparkles size={16} /> GTU Exam Paper Generator
+                </div>
+                <p style={{ fontSize: 11.5, color: 'var(--text2)', margin: 0, lineHeight: 1.5 }}>
+                  Generates realistic 70-mark university question papers (Q1–Q5 with 3m, 4m, and 7m sections and OR choices) grounded strictly in your study notes.
+                </p>
+              </div>
+
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                  <BookOpen size={16} /> Exam Paper Solver
+                </div>
+                <p style={{ fontSize: 11.5, color: 'var(--text2)', margin: 0, lineHeight: 1.5 }}>
+                  Upload official question papers to receive comprehensive model solutions. Output length scales according to marks (up to 500+ words for 7-mark questions).
+                </p>
+              </div>
+
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                  <Search size={16} /> Deep Search & Retrieval
+                </div>
+                <p style={{ fontSize: 11.5, color: 'var(--text2)', margin: 0, lineHeight: 1.5 }}>
+                  Search across all your uploaded course materials with semantic and keyword matching, pinpointing exact pages and source text snippets.
+                </p>
+              </div>
+
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                  <Layers size={16} /> Summaries, Quizzes & Flashcards
+                </div>
+                <p style={{ fontSize: 11.5, color: 'var(--text2)', margin: 0, lineHeight: 1.5 }}>
+                  Instantly transform long PDFs into short or detailed summaries, interactive multiple-choice quizzes, and study flashcards.
+                </p>
+              </div>
+
+            </div>
+
+            {/* Tech & Security Footnote */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--text3)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Cpu size={12} /> Powered by Groq LPU & Llama 3.3 70B
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <ShieldCheck size={12} /> PostgreSQL & Neon Secured
+              </span>
+              <span>Version 1.1.0</span>
+            </div>
           </div>
         )}
 
