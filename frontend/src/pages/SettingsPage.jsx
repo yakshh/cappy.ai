@@ -298,8 +298,8 @@ export default function SettingsPage() {
                 <GraduationCap size={22} />
               </div>
               <div>
-                <h2 className="font-display" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>About cappy.ai</h2>
-                <span style={{ fontSize: 11, color: 'var(--text3)' }}>Study Intelligence Platform v1.1.0</span>
+                <h2 className="font-display" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>About</h2>
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>Study Intelligence Platform</span>
               </div>
             </div>
 
