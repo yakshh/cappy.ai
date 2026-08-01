@@ -13,7 +13,7 @@ const TABS = [
   { id: 'profile',  icon: User,    label: 'Profile'            },
   { id: 'security', icon: Shield,  label: 'Security'           },
   { id: 'prefs',    icon: Palette, label: 'Appearance & Theme' },
-  { id: 'about',    icon: Info,    label: 'About cappy.ai'     },
+  { id: 'about',    icon: Info,    label: 'About'     },
 ]
 
 export default function SettingsPage() {
