@@ -235,14 +235,57 @@ def query_store(
             if not db_chunks:
                 return []
 
-            # Match chunks against query_text terms or return representative chunks
-            terms = [t.lower() for t in re.findall(r"\w+", query_text) if len(t) > 2]
+            # Match chunks against query_text using hybrid Keyword + Embedding similarity scoring
+            q_clean = query_text.strip().lower()
+            raw_terms = [t.lower() for t in re.findall(r"\w+", q_clean) if len(t) >= 2]
+
+            # Try generating query embedding vector
+            q_vec = None
+            try:
+                from rag.embeddings import embed_query, embed_texts
+                q_vec = embed_query(query_text)
+            except Exception as e_emb:
+                print(f"[Query Embed Error]: {e_emb}")
+
             scored = []
             for c in db_chunks:
                 text_lower = c.text.lower()
-                matches = sum(1 for term in terms if term in text_lower)
-                score = round(matches / max(len(terms), 1), 4) if terms else 0.5
+
+                # 1. Keyword match score
+                kw_score = 0.0
+                if raw_terms:
+                    exact_phrase = q_clean in text_lower
+                    word_matches = sum(1 for term in raw_terms if term in text_lower)
+                    kw_score = word_matches / len(raw_terms)
+                    if exact_phrase:
+                        kw_score = min(1.0, kw_score + 0.35)
+
+                # 2. Vector embedding similarity score
+                vec_score = 0.0
+                if q_vec and len(c.text.strip()) > 0:
+                    try:
+                        c_vec = embed_texts([c.text])[0]
+                        dot = sum(a * b for a, b in zip(q_vec, c_vec))
+                        vec_score = max(0.0, float(dot))
+                    except Exception:
+                        vec_score = 0.0
+
+                # 3. Final relevance score computation
+                if kw_score > 0:
+                    score = round(max(kw_score, (kw_score * 0.7 + vec_score * 0.3)), 4)
+                else:
+                    # No keyword match — only assign score if vector similarity is high (> 0.45)
+                    score = round(vec_score, 4) if vec_score >= 0.45 else 0.0
+
+                # If randomize is requested (for summary/quiz generators), provide baseline score
+                if randomize:
+                    score = max(score, 0.5)
+
                 scored.append((score, c))
+
+            # For search queries (randomize=False), filter out zero/irrelevant matches (< 0.10)
+            if not randomize:
+                scored = [(s, c) for s, c in scored if s >= 0.10]
 
             scored.sort(key=lambda x: x[0], reverse=True)
             selected = scored[:n_results * 2] if randomize else scored[:n_results]
@@ -255,7 +298,7 @@ def query_store(
                     "document_name": c.document_name,
                     "page": c.page,
                     "chunk_index": c.chunk_index,
-                    "score": score if score > 0 else 0.5,
+                    "score": score,
                 })
 
             if randomize and len(output) > n_results:
