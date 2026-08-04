@@ -3,6 +3,7 @@ routes/auth.py — Registration and login endpoints.
 """
 
 from datetime import timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
