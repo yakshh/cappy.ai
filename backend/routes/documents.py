@@ -142,14 +142,18 @@ async def upload_documents(
         db.refresh(doc)
 
         # Queue background processing
-        background_tasks.add_task(
-            _process_document,
-            doc.id,
-            str(file_path),
-            current_user.id,
-            file.filename,
-            settings.DATABASE_URL,
-        )
+        # Process document synchronously so chunks are written to PostgreSQL before serverless function completes
+        try:
+            _process_document(
+                doc.id,
+                str(file_path),
+                current_user.id,
+                file.filename,
+                settings.DATABASE_URL,
+            )
+            db.refresh(doc)
+        except Exception as e_proc:
+            print(f"[Upload Sync Processing Error]: {e_proc}")
 
         uploaded_docs.append({
             "id": doc.id,
