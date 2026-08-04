@@ -2,7 +2,7 @@
 database.py — SQLAlchemy database setup and session management.
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from config import settings
@@ -28,6 +28,16 @@ def get_db():
 
 
 def init_db():
-    """Create all tables defined in models."""
-    from models import user, document, conversation  # noqa: F401 — import to register models
+    """Create all tables defined in models and migrate missing columns."""
+    import models  # noqa: F401 — import to register all models
     Base.metadata.create_all(bind=engine)
+
+    # Auto-migrate missing columns for existing production databases (e.g. Neon PostgreSQL)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS field VARCHAR(120);"))
+            conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(100);"))
+            conn.commit()
+            print("[Database Migration] Missing columns checked/added successfully.")
+    except Exception as e:
+        print(f"[Database Migration Warning]: {e}")
