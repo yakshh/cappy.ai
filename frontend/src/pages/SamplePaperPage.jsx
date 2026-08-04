@@ -365,6 +365,9 @@ export default function SamplePaperPage() {
       .markdown-pdf-body h1, .markdown-pdf-body h2, .markdown-pdf-body h3 { font-family: serif; color: #000; margin-top: 1.5em; margin-bottom: 0.5em; }
       .markdown-pdf-body p { margin-bottom: 1em; }
       .markdown-pdf-body strong { font-weight: 700; }
+      .markdown-pdf-body ul { list-style-type: disc !important; padding-left: 1.5em !important; margin-bottom: 1em !important; }
+      .markdown-pdf-body ol { list-style-type: decimal !important; padding-left: 1.5em !important; margin-bottom: 1em !important; }
+      .markdown-pdf-body li { margin-bottom: 0.35em !important; display: list-item !important; }
       `}</style>
     </div>
   )

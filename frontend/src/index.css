@@ -469,11 +469,11 @@ body {
 .prose h2, .prose-dark h2 { font-size: 1.25rem; }
 .prose h3, .prose-dark h3 { font-size: 1.1rem; }
 .prose p, .prose-dark p { margin-bottom: 0.75em; }
-.prose ul, .prose-dark ul { list-style-type: disc !important; padding-left: 1.5em !important; margin-bottom: 0.75em; }
-.prose ol, .prose-dark ol { list-style-type: decimal !important; padding-left: 1.5em !important; margin-bottom: 0.75em; }
-.prose ul ul, .prose-dark ul ul { list-style-type: circle !important; margin-bottom: 0.25em; }
-.prose ol ol, .prose-dark ol ol { list-style-type: lower-alpha !important; margin-bottom: 0.25em; }
-.prose li, .prose-dark li { margin-bottom: 0.3em; display: list-item !important; }
+.prose ul, .prose-dark ul, .markdown-pdf-body ul { list-style-type: disc !important; padding-left: 1.5em !important; margin-bottom: 0.75em !important; margin-top: 0.4em !important; }
+.prose ol, .prose-dark ol, .markdown-pdf-body ol { list-style-type: decimal !important; padding-left: 1.5em !important; margin-bottom: 0.75em !important; margin-top: 0.4em !important; }
+.prose ul ul, .prose-dark ul ul, .markdown-pdf-body ul ul { list-style-type: circle !important; margin-bottom: 0.25em !important; }
+.prose ol ol, .prose-dark ol ol, .markdown-pdf-body ol ol { list-style-type: lower-alpha !important; margin-bottom: 0.25em !important; }
+.prose li, .prose-dark li, .markdown-pdf-body li { margin-bottom: 0.35em !important; display: list-item !important; list-style-position: outside !important; line-height: 1.6 !important; }
 .prose code, .prose-dark code {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
