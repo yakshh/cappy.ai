@@ -72,16 +72,78 @@ export default function SummaryPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleDownload = () => {
+  const handleDownloadPDF = async () => {
     if (!summary) return
-    const blob = new Blob([summary], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `summary-${mode}-${Date.now()}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Summary exported as .txt file!')
+    const contentEl = document.getElementById('summary-content-body')
+    if (!contentEl) return
+
+    toast.loading('Converting summary to PDF...', { id: 'pdf-summary' })
+
+    // Create a temporary off-screen element for clean PDF rendering
+    const tempDiv = document.createElement('div')
+    tempDiv.style.position = 'absolute'
+    tempDiv.style.left = '-9999px'
+    tempDiv.style.top = '-9999px'
+    tempDiv.style.width = '750px'
+    tempDiv.style.background = '#ffffff'
+    tempDiv.style.color = '#111827'
+    tempDiv.style.padding = '30px 36px'
+    tempDiv.style.fontFamily = 'Inter, system-ui, sans-serif'
+
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+    tempDiv.innerHTML = `
+      <div style="border-bottom: 2px solid #C9514A; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <div style="font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.5px;">
+            cappy<span style="color:#C9514A;">.ai</span> — Study Summary
+          </div>
+          <div style="font-size: 12px; color: #6B7280; margin-top: 3px;">
+            Mode: <strong style="color:#111827;">${mode.toUpperCase()}</strong> ${topic ? `| Topic: ${topic}` : ''}
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #9CA3AF; text-align: right;">
+          ${dateStr}
+        </div>
+      </div>
+      <div class="pdf-markdown-body" style="font-size: 13.5px; line-height: 1.65; color: #1F2937;">
+        ${contentEl.innerHTML}
+      </div>
+      <style>
+        .pdf-markdown-body h1, .pdf-markdown-body h2, .pdf-markdown-body h3 { color: #111827 !important; font-weight: 700 !important; margin-top: 16px !important; margin-bottom: 8px !important; }
+        .pdf-markdown-body p { margin-bottom: 10px !important; color: #1F2937 !important; }
+        .pdf-markdown-body ul { list-style-type: disc !important; padding-left: 20px !important; margin-bottom: 10px !important; }
+        .pdf-markdown-body ol { list-style-type: decimal !important; padding-left: 20px !important; margin-bottom: 10px !important; }
+        .pdf-markdown-body li { margin-bottom: 4px !important; color: #1F2937 !important; }
+        .pdf-markdown-body strong { color: #111827 !important; font-weight: 700 !important; }
+        .pdf-markdown-body code { background: #F3F4F6 !important; color: #C9514A !important; padding: 2px 5px !important; border-radius: 4px !important; }
+        .pdf-markdown-body pre { background: #F3F4F6 !important; padding: 10px !important; border-radius: 6px !important; overflow-x: auto !important; }
+        .pdf-markdown-body blockquote { border-left: 3px solid #C9514A !important; padding-left: 10px !important; color: #4B5563 !important; font-style: italic !important; }
+      </style>
+    `
+
+    document.body.appendChild(tempDiv)
+
+    try {
+      const html2pdfModule = await import('html2pdf.js')
+      const html2pdf = html2pdfModule.default || html2pdfModule
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `cappy_summary_${mode}_${Date.now()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }
+      await html2pdf().set(opt).from(tempDiv).save()
+      toast.success('PDF downloaded successfully!', { id: 'pdf-summary' })
+    } catch (err) {
+      console.error(err)
+      toast.error('PDF export failed. Try again.', { id: 'pdf-summary' })
+    } finally {
+      if (document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv)
+      }
+    }
   }
 
   return (
@@ -184,8 +246,8 @@ export default function SummaryPage() {
                 {copied ? <Check size={12} style={{ color: 'var(--green)' }} /> : <Copy size={12} />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={handleDownload}>
-                <Download size={12} /> Export MD
+              <button className="btn btn-ghost btn-sm" onClick={handleDownloadPDF}>
+                <Download size={12} /> Download PDF
               </button>
             </div>
           </div>
@@ -213,7 +275,7 @@ export default function SummaryPage() {
           )}
 
           {summary && !loading && (
-            <div className="prose-dark anim-in">
+            <div id="summary-content-body" className="prose-dark anim-in">
               <MarkdownRenderer content={summary} />
             </div>
           )}
