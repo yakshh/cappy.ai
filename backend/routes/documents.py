@@ -4,9 +4,11 @@ routes/documents.py — Upload, list, and delete document endpoints.
 
 import uuid
 import os
+import shutil
+import urllib.parse
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, BackgroundTasks
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, BackgroundTasks, Header
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
@@ -173,6 +175,94 @@ async def upload_documents(
     return {
         "message": f"{len(uploaded_docs)} document(s) uploaded. Processing started in background.",
         "documents": uploaded_docs
+    }
+
+
+@router.post("/upload-chunk")
+async def upload_chunk(
+    file: UploadFile = File(...),
+    upload_id: str = Header(None, alias="upload-id"),
+    chunk_index: int = Header(0, alias="chunk-index"),
+    total_chunks: int = Header(1, alias="total-chunks"),
+    original_filename: str = Header(None, alias="original-filename"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Handle chunked upload of large PDF files for Vercel serverless body size limits."""
+    filename = urllib.parse.unquote(original_filename) if original_filename else file.filename
+    suffix = Path(filename).suffix.lower()
+    if suffix not in settings.ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+
+    temp_dir = settings.UPLOAD_DIR / str(current_user.id) / "chunks" / (upload_id or "default")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    chunk_file = temp_dir / f"chunk_{chunk_index}.bin"
+
+    content = await file.read()
+    with open(chunk_file, "wb") as f:
+        f.write(content)
+
+    # Check how many chunks have arrived
+    existing_chunks = list(temp_dir.glob("chunk_*.bin"))
+    if len(existing_chunks) < total_chunks:
+        return {"done": False, "chunk_index": chunk_index, "chunks_received": len(existing_chunks)}
+
+    # All chunks received — reassemble full PDF file
+    stored_name = f"{uuid.uuid4().hex}{suffix}"
+    user_upload_dir = settings.UPLOAD_DIR / str(current_user.id)
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
+    final_file_path = user_upload_dir / stored_name
+
+    with open(final_file_path, "wb") as outfile:
+        for i in range(total_chunks):
+            c_path = temp_dir / f"chunk_{i}.bin"
+            if c_path.exists():
+                with open(c_path, "rb") as infile:
+                    outfile.write(infile.read())
+
+    # Clean up temp chunks
+    try:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    except Exception:
+        pass
+
+    file_size = final_file_path.stat().st_size
+    doc = Document(
+        user_id=current_user.id,
+        filename=filename,
+        stored_filename=stored_name,
+        file_path=str(final_file_path),
+        file_size=file_size,
+        status="processing",
+        category="General",
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    # Process synchronously right now on Vercel
+    try:
+        _process_document(
+            doc.id,
+            str(final_file_path),
+            current_user.id,
+            filename,
+            settings.DATABASE_URL,
+        )
+        db.refresh(doc)
+    except Exception as e_proc:
+        print(f"[Chunk Upload Processing Error]: {e_proc}")
+
+    return {
+        "done": True,
+        "document": {
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_size": doc.file_size,
+            "status": doc.status,
+            "category": doc.category or "General",
+            "created_at": doc.created_at.isoformat(),
+        }
     }
 
 
