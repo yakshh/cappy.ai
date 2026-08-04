@@ -51,14 +51,35 @@ def _process_document(document_id: int, file_path: str, user_id: int, filename: 
         # 2. Chunk text
         chunks = chunk_pages(pages)
 
-        # 3. Store embeddings in ChromaDB
+        # 3. Store chunks permanently in PostgreSQL for Vercel RAG persistence
+        try:
+            from models.document_chunk import DocumentChunk
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+            chunk_records = [
+                DocumentChunk(
+                    document_id=document_id,
+                    user_id=user_id,
+                    document_name=filename,
+                    page=c["page"],
+                    chunk_index=c["chunk_index"],
+                    text=c["text"],
+                )
+                for c in chunks
+            ]
+            db.add_all(chunk_records)
+            db.commit()
+            print(f"[Document Processing] Saved {len(chunk_records)} chunks to PostgreSQL for doc {document_id}")
+        except Exception as e_db:
+            print(f"[Document Processing] DB Chunk Save Warning: {e_db}")
+
+        # 4. Store embeddings in ChromaDB
         stored = add_chunks_to_store(
             user_id=user_id,
             document_id=document_id,
             document_name=filename,
             chunks=chunks,
         )
-        doc.chunk_count = stored
+        doc.chunk_count = len(chunks)
         doc.status = "ready"
 
     except Exception as e:

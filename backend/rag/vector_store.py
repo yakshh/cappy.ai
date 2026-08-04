@@ -148,35 +148,126 @@ def query_store(
     if document_ids:
         user_chunks = [c for c in user_chunks if c["document_id"] in document_ids]
 
-    if not user_chunks:
-        return []
+    if user_chunks:
+        q_vec = np.array(query_embedding, dtype=np.float32)
+        scores = []
+        for c in user_chunks:
+            c_vec = np.array(c["embedding"], dtype=np.float32)
+            norm_product = (np.linalg.norm(q_vec) * np.linalg.norm(c_vec))
+            sim = float(np.dot(q_vec, c_vec) / norm_product) if norm_product > 0 else 0.0
+            scores.append((sim, c))
 
-    q_vec = np.array(query_embedding, dtype=np.float32)
-    scores = []
-    for c in user_chunks:
-        c_vec = np.array(c["embedding"], dtype=np.float32)
-        norm_product = (np.linalg.norm(q_vec) * np.linalg.norm(c_vec))
-        sim = float(np.dot(q_vec, c_vec) / norm_product) if norm_product > 0 else 0.0
-        scores.append((sim, c))
+        scores.sort(key=lambda x: x[0], reverse=True)
+        top_items = scores[:n_results * 2] if randomize else scores[:n_results]
 
-    scores.sort(key=lambda x: x[0], reverse=True)
-    top_items = scores[:n_results * 2] if randomize else scores[:n_results]
+        output = []
+        for sim, c in top_items:
+            output.append({
+                "text": c["text"],
+                "document_id": c["document_id"],
+                "document_name": c["document_name"],
+                "page": c["page"],
+                "chunk_index": c["chunk_index"],
+                "score": round(sim, 4),
+            })
 
-    output = []
-    for sim, c in top_items:
-        output.append({
-            "text": c["text"],
-            "document_id": c["document_id"],
-            "document_name": c["document_name"],
-            "page": c["page"],
-            "chunk_index": c["chunk_index"],
-            "score": round(sim, 4),
-        })
+        if randomize and len(output) > n_results:
+            output = random.sample(output, n_results)
 
-    if randomize and len(output) > n_results:
-        output = random.sample(output, n_results)
+        if output:
+            return output
 
-    return output
+    # Permanent fallback: Query DocumentChunk table from PostgreSQL database
+    try:
+        import os, re
+        from database import SessionLocal
+        from models.document_chunk import DocumentChunk
+        from models.document import Document
+
+        db = SessionLocal()
+        try:
+            query = db.query(DocumentChunk).filter(DocumentChunk.user_id == user_id)
+            if document_ids:
+                query = query.filter(DocumentChunk.document_id.in_(document_ids))
+
+            db_chunks = query.all()
+
+            # If chunks are missing for selected documents, backfill from stored file_path if available
+            if not db_chunks and document_ids:
+                docs_to_backfill = db.query(Document).filter(
+                    Document.id.in_(document_ids),
+                    Document.user_id == user_id,
+                ).all()
+
+                for doc in docs_to_backfill:
+                    if doc.file_path and os.path.exists(doc.file_path):
+                        try:
+                            from services.pdf_service import extract_text_from_pdf
+                            from services.chunking_service import chunk_pages
+
+                            pages = extract_text_from_pdf(doc.file_path)
+                            c_list = chunk_pages(pages)
+                            new_records = [
+                                DocumentChunk(
+                                    document_id=doc.id,
+                                    user_id=user_id,
+                                    document_name=doc.filename,
+                                    page=c["page"],
+                                    chunk_index=c["chunk_index"],
+                                    text=c["text"],
+                                )
+                                for c in c_list
+                            ]
+                            db.add_all(new_records)
+                            db.commit()
+                            doc.chunk_count = len(c_list)
+                            doc.status = "ready"
+                            db.commit()
+                        except Exception as ex:
+                            print(f"[Backfill Error] doc {doc.id}: {ex}")
+
+                # Re-query after backfill
+                query = db.query(DocumentChunk).filter(DocumentChunk.user_id == user_id)
+                if document_ids:
+                    query = query.filter(DocumentChunk.document_id.in_(document_ids))
+                db_chunks = query.all()
+
+            if not db_chunks:
+                return []
+
+            # Match chunks against query_text terms or return representative chunks
+            terms = [t.lower() for t in re.findall(r"\w+", query_text) if len(t) > 2]
+            scored = []
+            for c in db_chunks:
+                text_lower = c.text.lower()
+                matches = sum(1 for term in terms if term in text_lower)
+                score = round(matches / max(len(terms), 1), 4) if terms else 0.5
+                scored.append((score, c))
+
+            scored.sort(key=lambda x: x[0], reverse=True)
+            selected = scored[:n_results * 2] if randomize else scored[:n_results]
+
+            output = []
+            for score, c in selected:
+                output.append({
+                    "text": c.text,
+                    "document_id": c.document_id,
+                    "document_name": c.document_name,
+                    "page": c.page,
+                    "chunk_index": c.chunk_index,
+                    "score": score if score > 0 else 0.5,
+                })
+
+            if randomize and len(output) > n_results:
+                output = random.sample(output, n_results)
+
+            return output
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[PostgreSQL Chunk Search Error]: {e}")
+
+    return []
 
 
 def delete_document_from_store(user_id: int, document_id: int) -> None:
