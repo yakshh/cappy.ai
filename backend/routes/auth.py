@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from auth import create_access_token, get_current_user, hash_password, verify_password
 from config import settings
-from database import get_db
+from database import get_db, ensure_db_schema
 from models.user import User
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -41,6 +41,7 @@ class TokenResponse(BaseModel):
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """Create a new user account and return a JWT token."""
     try:
+        ensure_db_schema()
         clean_email = payload.email.lower().strip()
         clean_name = payload.full_name.strip()
         clean_field = payload.field.strip() if payload.field else None
@@ -115,6 +116,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate a user and return a JWT token."""
     try:
+        ensure_db_schema()
         clean_email = payload.email.lower().strip()
         user = db.query(User).filter(User.email == clean_email).first()
 

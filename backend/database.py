@@ -27,17 +27,19 @@ def get_db():
         db.close()
 
 
-def init_db():
-    """Create all tables defined in models and migrate missing columns."""
-    import models  # noqa: F401 — import to register all models
-    Base.metadata.create_all(bind=engine)
-
-    # Auto-migrate missing columns for existing production databases (e.g. Neon PostgreSQL)
+def ensure_db_schema():
+    """Ensure missing table columns exist in database."""
     try:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS field VARCHAR(120);"))
             conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(100);"))
             conn.commit()
-            print("[Database Migration] Missing columns checked/added successfully.")
     except Exception as e:
-        print(f"[Database Migration Warning]: {e}")
+        print(f"[Database Schema Notice]: {e}")
+
+
+def init_db():
+    """Create all tables defined in models and migrate missing columns."""
+    ensure_db_schema()
+    import models  # noqa: F401 — import to register all models
+    Base.metadata.create_all(bind=engine)
