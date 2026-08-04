@@ -18,6 +18,7 @@ class UpdateProfileRequest(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     avatar_url: Optional[str] = None
+    field: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -33,6 +34,7 @@ def get_profile(current_user: User = Depends(get_current_user)):
         "full_name": current_user.full_name,
         "email": current_user.email,
         "avatar_url": current_user.avatar_url,
+        "field": current_user.field,
         "created_at": current_user.created_at.isoformat(),
     }
 
@@ -43,7 +45,7 @@ def update_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update name, email, or avatar URL."""
+    """Update name, email, avatar URL, or field."""
     if payload.full_name:
         current_user.full_name = payload.full_name.strip()
 
@@ -58,6 +60,9 @@ def update_profile(
     if payload.avatar_url is not None:
         current_user.avatar_url = payload.avatar_url
 
+    if payload.field is not None:
+        current_user.field = payload.field.strip()
+
     db.commit()
     db.refresh(current_user)
 
@@ -66,6 +71,7 @@ def update_profile(
         "full_name": current_user.full_name,
         "email": current_user.email,
         "avatar_url": current_user.avatar_url,
+        "field": current_user.field,
     }
 
 

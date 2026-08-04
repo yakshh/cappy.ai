@@ -4,12 +4,9 @@ routes/documents.py — Upload, list, and delete document endpoints.
 
 import uuid
 import os
-import base64
 from pathlib import Path
-from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, BackgroundTasks, Header
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
@@ -54,22 +51,7 @@ def _process_document(document_id: int, file_path: str, user_id: int, filename: 
         # 2. Chunk text
         chunks = chunk_pages(pages)
 
-        # 3. Save chunks to PostgreSQL DB for permanent search
-        from models.document_chunk import DocumentChunk
-        # Delete existing chunks for this document if re-processing
-        db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
-        for c in chunks:
-            chunk_rec = DocumentChunk(
-                document_id=document_id,
-                user_id=user_id,
-                document_name=filename,
-                page=c.get("page", 1),
-                chunk_index=c.get("chunk_index", 0),
-                text=c.get("text", ""),
-            )
-            db.add(chunk_rec)
-
-        # 4. Store embeddings in ChromaDB
+        # 3. Store embeddings in ChromaDB
         stored = add_chunks_to_store(
             user_id=user_id,
             document_id=document_id,
@@ -88,113 +70,9 @@ def _process_document(document_id: int, file_path: str, user_id: int, filename: 
         db.close()
 
 
-# ── Chunked upload endpoints ───────────────────────────────────────────────────
-# The browser splits the PDF into 3MB pieces and POSTs them one by one.
-# The final chunk triggers processing.
+# ── Upload endpoint ────────────────────────────────────────────────────────────
 
-class ChunkUploadResponse(BaseModel):
-    upload_id: str
-    chunk_index: int
-    received: bool
-
-class ChunkFinalizeResponse(BaseModel):
-    document: dict
-
-@router.post("/upload-chunk", status_code=status.HTTP_200_OK)
-async def upload_chunk(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    upload_id: str = Header(...),
-    chunk_index: int = Header(...),
-    total_chunks: int = Header(...),
-    original_filename: str = Header(...),
-    file: UploadFile = File(...),
-):
-    """Receive one chunk of a PDF upload. When all chunks arrive, reassemble and process."""
-    # Decode the original_filename in case it was URL-encoded
-    from urllib.parse import unquote
-    original_filename = unquote(original_filename)
-
-    # Validate extension
-    suffix = Path(original_filename).suffix.lower()
-    if suffix not in settings.ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-
-    # Store chunk in temp directory
-    tmp_dir = settings.UPLOAD_DIR / "tmp" / upload_id
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    chunk_path = tmp_dir / f"chunk_{chunk_index:05d}"
-
-    content = await file.read()
-    with open(chunk_path, "wb") as f:
-        f.write(content)
-
-    # Check if all chunks have arrived
-    received_chunks = sorted(tmp_dir.glob("chunk_*"))
-    if len(received_chunks) < total_chunks:
-        # Not done yet
-        return {"upload_id": upload_id, "chunk_index": chunk_index, "received": True, "done": False}
-
-    # All chunks received — reassemble
-    user_upload_dir = settings.UPLOAD_DIR / str(current_user.id)
-    user_upload_dir.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid.uuid4().hex}{suffix}"
-    file_path = user_upload_dir / stored_name
-
-    total_size = 0
-    with open(file_path, "wb") as out:
-        for chunk_file in received_chunks:
-            data = chunk_file.read_bytes()
-            out.write(data)
-            total_size += len(data)
-
-    # Clean up temp chunks
-    import shutil
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-
-    # Validate total size
-    if total_size > settings.MAX_UPLOAD_SIZE_BYTES:
-        file_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=413, detail="File exceeds 10MB limit.")
-
-    # Create DB record
-    from fastapi import BackgroundTasks
-    background_tasks = BackgroundTasks()
-
-    doc = Document(
-        user_id=current_user.id,
-        filename=original_filename,
-        stored_filename=stored_name,
-        file_path=str(file_path),
-        file_size=total_size,
-        status="processing",
-        category="General",
-    )
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
-
-    # Process document synchronously so chunks are permanently written to PostgreSQL
-    try:
-        _process_document(doc.id, str(file_path), current_user.id, original_filename, settings.DATABASE_URL)
-        db.refresh(doc)
-    except Exception as e:
-        print(f"[Upload Processing Error]: {e}")
-
-    return {
-        "done": True,
-        "document": {
-            "id": doc.id,
-            "filename": doc.filename,
-            "file_size": doc.file_size,
-            "status": doc.status,
-            "category": doc.category,
-            "created_at": doc.created_at.isoformat(),
-        }
-    }
-
-
-# ── Legacy single-file upload (kept for backwards compat) ─────────────────────
+from typing import List
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_documents(
@@ -207,15 +85,19 @@ async def upload_documents(
     uploaded_docs = []
 
     for file in files:
+        # Validate file type
         suffix = Path(file.filename).suffix.lower()
         if suffix not in settings.ALLOWED_EXTENSIONS:
             continue
 
+        # Read file content
         content = await file.read()
 
+        # Validate file size
         if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
             continue
 
+        # Save file with UUID name to prevent collisions
         stored_name = f"{uuid.uuid4().hex}{suffix}"
         user_upload_dir = settings.UPLOAD_DIR / str(current_user.id)
         user_upload_dir.mkdir(parents=True, exist_ok=True)
@@ -224,6 +106,7 @@ async def upload_documents(
         with open(file_path, "wb") as f:
             f.write(content)
 
+        # Create DB record
         doc = Document(
             user_id=current_user.id,
             filename=file.filename,
@@ -237,17 +120,15 @@ async def upload_documents(
         db.commit()
         db.refresh(doc)
 
-        try:
-            _process_document(
-                doc.id,
-                str(file_path),
-                current_user.id,
-                file.filename,
-                settings.DATABASE_URL,
-            )
-            db.refresh(doc)
-        except Exception as e:
-            print(f"[Legacy Upload Processing Error]: {e}")
+        # Queue background processing
+        background_tasks.add_task(
+            _process_document,
+            doc.id,
+            str(file_path),
+            current_user.id,
+            file.filename,
+            settings.DATABASE_URL,
+        )
 
         uploaded_docs.append({
             "id": doc.id,
@@ -328,6 +209,8 @@ def get_document(
     }
 
 
+from pydantic import BaseModel
+
 class UpdateCategoryRequest(BaseModel):
     category: str
 
@@ -370,13 +253,16 @@ def delete_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
 
+    # Remove from ChromaDB
     delete_document_from_store(current_user.id, document_id)
 
+    # Remove file from disk
     try:
         if os.path.exists(doc.file_path):
             os.remove(doc.file_path)
     except Exception as e:
         print(f"[Delete] Could not remove file: {e}")
 
+    # Remove from DB
     db.delete(doc)
     db.commit()

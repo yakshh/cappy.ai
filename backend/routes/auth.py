@@ -20,6 +20,7 @@ class RegisterRequest(BaseModel):
     full_name: str
     email: str
     password: str
+    field: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -40,6 +41,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """Create a new user account and return a JWT token."""
     clean_email = payload.email.lower().strip()
     clean_name = payload.full_name.strip()
+    clean_field = payload.field.strip() if payload.field else None
 
     if not clean_email or "@" not in clean_email or "." not in clean_email:
         raise HTTPException(
@@ -51,6 +53,12 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Please provide your full name.",
+        )
+
+    if not clean_field:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Please provide your Field / Stream of study.",
         )
 
     if len(payload.password) < 8:
@@ -70,6 +78,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     new_user = User(
         full_name=clean_name,
         email=clean_email,
+        field=clean_field,
         hashed_password=pwd_hash,
     )
     db.add(new_user)
@@ -88,6 +97,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             "id": new_user.id,
             "full_name": new_user.full_name,
             "email": new_user.email,
+            "field": new_user.field,
             "created_at": new_user.created_at.isoformat(),
         },
     }
@@ -123,6 +133,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             "id": user.id,
             "full_name": user.full_name,
             "email": user.email,
+            "field": user.field,
             "created_at": user.created_at.isoformat(),
         },
     }
@@ -135,5 +146,6 @@ def get_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "full_name": current_user.full_name,
         "email": current_user.email,
+        "field": current_user.field,
         "created_at": current_user.created_at.isoformat(),
     }

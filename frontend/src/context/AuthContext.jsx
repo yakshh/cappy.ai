@@ -29,10 +29,10 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const register = useCallback(async (fullName, email, password) => {
+  const register = useCallback(async (fullName, email, password, field) => {
     setLoading(true)
     try {
-      const { data } = await authService.register({ full_name: fullName, email, password })
+      const { data } = await authService.register({ full_name: fullName, email, password, field })
       localStorage.setItem('token', data.access_token)
       localStorage.setItem('user', JSON.stringify(data.user))
       setUser(data.user)

@@ -32,14 +32,16 @@ def get_gemini_model():
 
 # ── AI Provider Callers ────────────────────────────────────────────────────────
 
-def _call_gemini(prompt: str, response_json: bool = False) -> str:
+def _call_gemini(prompt: str, response_json: bool = False, api_key: Optional[str] = None) -> str:
     """Call Google Gemini API with token-conserving generation config."""
-    if not settings.GEMINI_API_KEY:
+    key = api_key or settings.GEMINI_API_KEY
+    if not key:
         raise ValueError("GEMINI_API_KEY is not set.")
-    model = get_gemini_model()
+    genai.configure(api_key=key)
+    model = genai.GenerativeModel("gemini-flash-latest")
     kwargs = {
         "temperature": 0.75,
-        "max_output_tokens": 4096,
+        "max_output_tokens": 8192,
     }
     if response_json:
         kwargs["response_mime_type"] = "application/json"
@@ -105,9 +107,10 @@ def parse_json_robust(raw_json: str):
     raise ValueError("Failed to parse valid JSON from AI output.")
 
 
-def _call_groq(prompt: str, response_json: bool = False) -> str:
+def _call_groq(prompt: str, response_json: bool = False, api_key: Optional[str] = None) -> str:
     """Call Groq Cloud API (Ultra-fast LPU inference)."""
-    if not settings.GROQ_API_KEY:
+    key = api_key or settings.GROQ_API_KEY
+    if not key:
         raise ValueError("GROQ_API_KEY is not set.")
 
     groq_url = "https://api.groq.com/openai/v1/chat/completions"
@@ -115,7 +118,7 @@ def _call_groq(prompt: str, response_json: bool = False) -> str:
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.75,
-        "max_tokens": 6000,
+        "max_tokens": 8192,
     }
     if response_json:
         payload["response_format"] = {"type": "json_object"}
@@ -126,7 +129,7 @@ def _call_groq(prompt: str, response_json: bool = False) -> str:
         data=data,
         headers={
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+            "Authorization": f"Bearer {key}",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) cappy.ai/1.0",
         },
     )
@@ -170,34 +173,56 @@ def _call_ollama(prompt: str, response_json: bool = False) -> str:
 
 def _generate_text(prompt: str, response_json: bool = False) -> str:
     """
-    Hybrid text generation with automatic fallback:
-    1. Primary: Groq API (llama-3.3-70b-versatile @ 500+ tokens/sec)
-    2. Secondary: Gemini API (gemini-flash-latest)
-    3. Tertiary: Local Ollama (llama3.2:3b)
+    Hybrid text generation with automatic multi-key and provider fallback:
+    1. Primary: Groq API Key 1
+    2. Secondary: Groq API Key 2
+    3. Tertiary: Gemini API Key 1
+    4. Quaternary: Gemini API Key 2
+    5. Local: Ollama
     """
     errors = []
 
-    # 1. Try Groq API first (Fastest response time <0.8s)
+    # 1. Try Primary Groq API Key
     if settings.GROQ_API_KEY:
         try:
-            return _call_groq(prompt, response_json=response_json)
+            return _call_groq(prompt, response_json=response_json, api_key=settings.GROQ_API_KEY)
         except Exception as e:
-            msg = f"Groq API call failed: {e}. Falling back to Gemini..."
+            msg = f"Primary Groq API failed: {e}."
             logger.warning(msg)
             print(f"[AI Fallback] {msg}")
-            errors.append(f"Groq: {e}")
+            errors.append(f"Groq Key 1: {e}")
 
-    # 2. Fall back to Gemini API
+    # 2. Try Secondary Groq API Key if configured
+    if settings.GROQ_API_KEY_2:
+        try:
+            return _call_groq(prompt, response_json=response_json, api_key=settings.GROQ_API_KEY_2)
+        except Exception as e:
+            msg = f"Secondary Groq API failed: {e}."
+            logger.warning(msg)
+            print(f"[AI Fallback] {msg}")
+            errors.append(f"Groq Key 2: {e}")
+
+    # 3. Try Primary Gemini API Key
     if settings.GEMINI_API_KEY:
         try:
-            return _call_gemini(prompt, response_json=response_json)
+            return _call_gemini(prompt, response_json=response_json, api_key=settings.GEMINI_API_KEY)
         except Exception as e:
-            msg = f"Gemini API call failed: {e}. Falling back to Ollama..."
+            msg = f"Primary Gemini API failed: {e}."
             logger.warning(msg)
             print(f"[AI Fallback] {msg}")
-            errors.append(f"Gemini: {e}")
+            errors.append(f"Gemini Key 1: {e}")
 
-    # 3. Fall back to Local Ollama
+    # 4. Try Secondary Gemini API Key if configured
+    if settings.GEMINI_API_KEY_2:
+        try:
+            return _call_gemini(prompt, response_json=response_json, api_key=settings.GEMINI_API_KEY_2)
+        except Exception as e:
+            msg = f"Secondary Gemini API failed: {e}."
+            logger.warning(msg)
+            print(f"[AI Fallback] {msg}")
+            errors.append(f"Gemini Key 2: {e}")
+
+    # 5. Fall back to Local Ollama
     try:
         return _call_ollama(prompt, response_json=response_json)
     except Exception as e:
@@ -206,7 +231,7 @@ def _generate_text(prompt: str, response_json: bool = False) -> str:
     error_summary = " | ".join(errors)
     raise RuntimeError(
         f"All AI generation providers failed. ({error_summary}). "
-        "Please check your GROQ_API_KEY/GEMINI_API_KEY in .env or start Ollama locally."
+        "Please check your GROQ_API_KEY/GEMINI_API_KEY environment variables or start Ollama locally."
     )
 
 
@@ -530,57 +555,24 @@ def solve_question_paper(
 ) -> str:
     """
     Generate step-by-step model solutions for an uploaded question paper grounded in study materials.
-    Returns JSON structure.
+    Returns raw Markdown.
     """
-    prompt = f"""You are a senior university professor and head examiner for '{subject_name}'.
-Your task is to provide complete, highly accurate model solutions for EVERY question in the question paper below.
+    prompt = f"""You are a master university professor and exam evaluator for '{subject_name}'.
+Your task is to provide complete, thorough, step-by-step solutions for every question in the question paper below.
 
-CRITICAL ANSWER LENGTH & MARK-BASED RULES (STRICTLY ENFORCE):
-1. **3 MARKS QUESTIONS**: Write a concise, focused answer of 50 to 90 words. Use 3 to 4 clear bullet points or a short direct explanation.
-2. **4 MARKS QUESTIONS**: Write a medium-length answer of 130 to 190 words. Include a clear definition, 4 to 5 detailed bullet points, key technical terms, or a quick code/block-diagram overview.
-3. **7 MARKS QUESTIONS**: Write an EXTENSIVE, IN-DEPTH, AND COMPREHENSIVE academic answer of 350 to 550 words. Divide into bold section headings (e.g. ## Overview, ## Working Mechanism / Architecture, ## Key Components, ## Step-by-Step Example / Code / Diagram, ## Advantages & Applications). Provide complete, exhaustive explanations with full details so a student gets full 7/7 marks.
-
-GENERAL INSTRUCTIONS:
-- Answer every question and subquestion (e.g. Q.1 (a), (b), (c)) clearly and accurately.
-- Base explanations on the study context provided below wherever possible.
-- For technical/numerical/diagram questions, provide clear text ASCII/block diagrams or pseudocode/code snippets.
-
-Return a valid JSON object with key "solutions" matching this format:
-{{
-  "subject_name": "{subject_name}",
-  "solutions": [
-    {{
-      "q_no": "Q.1",
-      "solution_items": [
-        {{
-          "part": "(a)",
-          "question": "Subquestion text...",
-          "marks": 3,
-          "answer": "Concise 3-mark model answer (50-90 words)..."
-        }},
-        {{
-          "part": "(b)",
-          "question": "Subquestion text...",
-          "marks": 4,
-          "answer": "Medium 4-mark model answer (130-190 words)..."
-        }},
-        {{
-          "part": "(c)",
-          "question": "Subquestion text...",
-          "marks": 7,
-          "answer": "Extensive 7-mark model answer (350-550 words with headings and full details)..."
-        }}
-      ]
-    }}
-  ]
-}}
+STRICT INSTRUCTIONS:
+1. Answer every question and subquestion clearly and accurately.
+2. Base explanations on the study context provided below wherever possible.
+3. For numerical or code/diagram questions, provide clear explanations or pseudocode.
+4. The length of the answer MUST be strictly according to the marks of the questions. For a 3 or 4 marks question, write a concise answer. For a 7+ marks question, write an extensive and highly detailed answer with deep explanations.
+5. Format your entire output in clean, structured Markdown. Use appropriate headings for questions (e.g. ### Q.1 (a)).
 
 STUDY CONTEXT FROM NOTES:
-{context[:5000]}
+{context[:8000]}
 
 QUESTION PAPER TO SOLVE:
-{paper_text[:4000]}
+{paper_text[:8000]}
 
-JSON OUTPUT:"""
+MARKDOWN OUTPUT:"""
 
-    return _generate_text(prompt, response_json=True)
+    return _generate_text(prompt, response_json=False)

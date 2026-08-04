@@ -4,16 +4,17 @@ import { authService } from '../services'
 import { useTheme } from '../context/ThemeContext'
 import {
   User, Mail, Lock, Save, GraduationCap,
-  Moon, Sun, Shield, CheckCircle,
-  Eye, EyeOff, Palette, Info
+  Moon, Sun, Bell, Shield, CheckCircle,
+  Eye, EyeOff, Palette
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TABS = [
-  { id: 'profile',  icon: User,    label: 'Profile'            },
-  { id: 'security', icon: Shield,  label: 'Security'           },
-  { id: 'prefs',    icon: Palette, label: 'Appearance & Theme' },
-  { id: 'about',    icon: Info,    label: 'About'              },
+  { id: 'profile',   icon: User,     label: 'Profile'            },
+  { id: 'security',  icon: Shield,   label: 'Security'           },
+  { id: 'prefs',     icon: Bell,     label: 'Appearance & Theme' },
+  { id: 'notifications', icon: Bell, label: 'Notifications' },
+]
 ]
 
 export default function SettingsPage() {
@@ -24,8 +25,16 @@ export default function SettingsPage() {
   // Profile state
   const [name, setName] = useState(user?.full_name || '')
   const [email, setEmail] = useState(user?.email || '')
-  const [major, setMajor] = useState('Computer Science & Engineering')
+  const [field, setField] = useState(user?.field || '')
   const [savingProfile, setSavingProfile] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      setName(user.full_name || '')
+      setEmail(user.email || '')
+      setField(user.field || '')
+    }
+  }, [user])
 
   // Password state
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' })
@@ -45,6 +54,7 @@ export default function SettingsPage() {
       const { data } = await authService.updateProfile({
         full_name: name.trim(),
         email: email.trim(),
+        field: field.trim(),
       })
       updateUser(data)
       toast.success('Profile details saved successfully!')
@@ -103,7 +113,7 @@ export default function SettingsPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.full_name || 'User'}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text2)' }}>{user?.email || 'Student'}</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)' }}>{user?.field || user?.email || 'Student'}</div>
           </div>
         </div>
 
@@ -142,8 +152,8 @@ export default function SettingsPage() {
                 <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
-                <Label><GraduationCap size={9} style={{ display: 'inline', marginRight: 5 }} />Major / Department</Label>
-                <input className="input" value={major} onChange={(e) => setMajor(e.target.value)} />
+                <Label><GraduationCap size={9} style={{ display: 'inline', marginRight: 5 }} />Field</Label>
+                <input className="input" placeholder="e.g. Computer Engineering, Business, Medicine" value={field} onChange={(e) => setField(e.target.value)} />
               </div>
             </div>
             <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleSaveProfile} disabled={savingProfile}>
@@ -164,7 +174,6 @@ export default function SettingsPage() {
                 <Label>Current Password</Label>
                 <div style={{ position: 'relative' }}>
                   <input
-                    className="input"
                     type={showPass ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={passwords.current}
@@ -287,55 +296,31 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* About Tab */}
-        {tab === 'about' && (
+        {/* Notifications Tab */}
+        {tab === 'notifications' && (
           <div className="card anim-in" style={{ padding: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10, background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0
-              }}>
-                <GraduationCap size={22} />
-              </div>
-              <div>
-                <h2 className="font-display" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>About</h2>
-                <span style={{ fontSize: 11, color: 'var(--text3)' }}>Study Intelligence Platform</span>
-              </div>
+            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Notification Settings</h2>
+            <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 18 }}>Control helpful app updates. API keys and private credentials are never shown here.</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                ['Document Processing Toasts', 'Show alerts when uploaded PDFs finish indexing.', docNotifications, setDocNotifications],
+                ['Dashboard Auto-refresh', 'Refresh document status automatically while you work.', autoRefresh, setAutoRefresh],
+                ['Weekly Learning Summary', 'Keep a local preference for a weekly progress reminder.', weeklyDigest, setWeeklyDigest],
+              ].map(([label, description, enabled, setter]) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)', gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text2)' }}>{description}</div>
+                  </div>
+                  <button type="button" onClick={() => setter(!enabled)} className={`toggle ${enabled ? 'on' : ''}`} aria-label={`Toggle ${label}`} />
+                </div>
+              ))}
             </div>
 
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text2)', marginBottom: 20 }}>
-              cappy.ai is an artificial intelligence platform designed to help students analyze course materials, accelerate revision, and master university examinations.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ padding: 14, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Document Processing and Indexing</h3>
-                <p style={{ fontSize: 12, color: 'var(--text2)', margin: 0 }}>
-                  Upload course PDFs and study guides up to 10MB. The system automatically extracts, indexes, and chunks text for fast retrieval.
-                </p>
-              </div>
-
-              <div style={{ padding: 14, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>RAG Grounded Intelligence</h3>
-                <p style={{ fontSize: 12, color: 'var(--text2)', margin: 0 }}>
-                  Ask questions across your uploaded documents. Answers are generated directly from your uploaded materials with exact page citations.
-                </p>
-              </div>
-
-              <div style={{ padding: 14, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Automated Summaries, Quizzes, and Flashcards</h3>
-                <p style={{ fontSize: 12, color: 'var(--text2)', margin: 0 }}>
-                  Generate short, detailed, or bulleted notes, multiple-choice quizzes, and study flashcards directly from lecture content.
-                </p>
-              </div>
-
-              <div style={{ padding: 14, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Exam Paper Synthesis and Step-by-Step Solutions</h3>
-                <p style={{ fontSize: 12, color: 'var(--text2)', margin: 0 }}>
-                  Create university-format sample question papers grounded in your syllabus, or upload existing question papers to generate step-by-step model solutions.
-                </p>
-              </div>
-            </div>
+            <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleSaveNotifications}>
+              <Save size={14} /> Save Notification Settings
+            </button>
           </div>
         )}
 

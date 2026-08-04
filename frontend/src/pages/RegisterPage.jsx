@@ -8,7 +8,7 @@ export default function RegisterPage() {
   const { register, loading } = useAuth()
   const navigate = useNavigate()
 
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState({ fullName: '', email: '', field: '', password: '', confirmPassword: '' })
   const [showPass, setShowPass] = useState(false)
   const [errors, setErrors] = useState({})
 
@@ -17,6 +17,7 @@ export default function RegisterPage() {
     if (!form.fullName.trim()) e.fullName = 'Full name is required'
     if (!form.email) e.email = 'Email is required'
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email'
+    if (!form.field.trim()) e.field = 'Field of study is required'
     if (!form.password) e.password = 'Password is required'
     else if (form.password.length < 8) e.password = 'Password must be at least 8 characters'
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match'
@@ -27,7 +28,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
-    const result = await register(form.fullName, form.email, form.password)
+    const result = await register(form.fullName, form.email, form.password, form.field.trim())
     if (result.success) {
       toast.success('Account created! Welcome to cappy.ai')
       navigate('/dashboard', { replace: true })
@@ -96,6 +97,21 @@ export default function RegisterPage() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
               {errors.email && <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 3 }}>{errors.email}</p>}
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)', marginBottom: 5 }}>
+                Field of Study
+              </label>
+              <input
+                id="register-field"
+                type="text"
+                className="input"
+                placeholder="e.g. Computer Engineering, Business, Medicine"
+                value={form.field}
+                onChange={(e) => setForm({ ...form, field: e.target.value })}
+              />
+              {errors.field && <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 3 }}>{errors.field}</p>}
             </div>
 
             <div>

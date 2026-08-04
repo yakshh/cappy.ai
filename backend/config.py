@@ -31,7 +31,9 @@ class Settings:
 
     # ── Gemini & Groq AI ──────────────────────────────────────
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_API_KEY_2: str = os.getenv("GEMINI_API_KEY_2", "")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_API_KEY_2: str = os.getenv("GROQ_API_KEY_2", "")
 
     # ── File Upload ──────────────────────────────────────────
     MAX_UPLOAD_SIZE_BYTES: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", 25)) * 1024 * 1024
