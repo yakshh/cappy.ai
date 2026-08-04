@@ -289,7 +289,7 @@ export default function SamplePaperPage() {
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn btn-ghost btn-sm" onClick={handlePrint}><Printer size={12} /> Print</button>
-              <button className="btn btn-primary btn-sm" onClick={handleDownloadPdf}><Download size={12} /> Download PDF</button>
+              <button className="btn btn-primary btn-sm" onClick={handleDownloadPdf}><Download size={12} /> Export</button>
             </div>
           </div>
         )}

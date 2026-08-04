@@ -224,7 +224,7 @@ export default function QuizPage() {
                 </button>
               )}
               <button className="btn btn-ghost btn-sm" onClick={handleDownload}>
-                <Download size={12} /> Export Text
+                <Download size={12} /> Export
               </button>
             </div>
           </div>

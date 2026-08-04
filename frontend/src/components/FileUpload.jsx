@@ -203,9 +203,25 @@ export default function FileUpload({ onUploadSuccess }) {
         <button
           onClick={handleUpload}
           id="upload-submit-btn"
-          className="btn-primary w-full"
+          style={{
+            width: '100%',
+            padding: '11px 16px',
+            borderRadius: 'var(--radius)',
+            border: 'none',
+            background: 'var(--green)',
+            color: '#0D0C0C',
+            fontWeight: 700,
+            fontSize: 13.5,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            boxShadow: '0 4px 14px var(--green-dim)',
+            transition: 'all 0.15s'
+          }}
         >
-          Upload {selectedFiles.length} PDF{selectedFiles.length > 1 ? 's' : ''}
+          <Upload size={15} /> Upload {selectedFiles.length} PDF{selectedFiles.length > 1 ? 's' : ''}
         </button>
       )}
     </div>

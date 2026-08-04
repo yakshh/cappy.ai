@@ -79,8 +79,8 @@ export default function DashboardPage() {
         <button
           onClick={() => setShowUpload(!showUpload)}
           id="open-upload-btn"
-          className="btn btn-primary"
-          style={{ gap: 6, padding: '10px 16px' }}
+          className={showUpload ? "btn btn-ghost" : "btn btn-primary"}
+          style={{ gap: 6, padding: '10px 16px', border: showUpload ? '1px solid var(--border)' : 'none' }}
         >
           {showUpload ? <X size={15} /> : <Plus size={15} />}
           {showUpload ? 'Close Uploader' : 'Upload PDF'}
