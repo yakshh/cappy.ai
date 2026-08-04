@@ -46,15 +46,11 @@ class Settings:
     # ── Database ─────────────────────────────────────────────
     # Vercel's filesystem is ephemeral. Configure DATABASE_URL with a hosted
     # PostgreSQL connection string in Vercel for persistent accounts/data.
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        os.getenv(
-            "POSTGRES_URL",
-            f"sqlite:///{BASE_DIR}/cappy.db" if IS_VERCEL else "sqlite:///./cappy.db",
-        ),
-    ).replace("postgres://", "postgresql+psycopg://", 1).replace(
-        "postgresql://", "postgresql+psycopg://", 1
-    )
+    _raw_db_url: str = os.getenv("DATABASE_URL", os.getenv("POSTGRES_URL", ""))
+    if _raw_db_url:
+        DATABASE_URL: str = _raw_db_url.replace("postgres://", "postgresql://", 1)
+    else:
+        DATABASE_URL: str = f"sqlite:///{BASE_DIR}/cappy.db" if IS_VERCEL else "sqlite:///./cappy.db"
 
     # ── Chunking ─────────────────────────────────────────────
     CHUNK_SIZE: int = 1000
