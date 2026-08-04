@@ -263,31 +263,53 @@ def update_document_category(
 
 # ── Delete document ────────────────────────────────────────────────────────────
 
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{document_id}", status_code=status.HTTP_200_OK)
 def delete_document(
     document_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a document, its file on disk, and its ChromaDB embeddings."""
-    doc = (
-        db.query(Document)
-        .filter(Document.id == document_id, Document.user_id == current_user.id)
-        .first()
-    )
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found.")
-
-    # Remove from ChromaDB
-    delete_document_from_store(current_user.id, document_id)
-
-    # Remove file from disk
+    """Delete a document, its chunks in PostgreSQL, its file on disk, and vector store entries."""
     try:
-        if os.path.exists(doc.file_path):
-            os.remove(doc.file_path)
-    except Exception as e:
-        print(f"[Delete] Could not remove file: {e}")
+        doc = (
+            db.query(Document)
+            .filter(Document.id == document_id, Document.user_id == current_user.id)
+            .first()
+        )
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found.")
 
-    # Remove from DB
-    db.delete(doc)
-    db.commit()
+        # 1. Delete chunks from PostgreSQL DocumentChunk table
+        try:
+            from models.document_chunk import DocumentChunk
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+            db.commit()
+        except Exception as e_chunk:
+            print(f"[Delete] Could not remove document_chunks: {e_chunk}")
+            db.rollback()
+
+        # 2. Remove from ChromaDB / in-memory store
+        try:
+            delete_document_from_store(current_user.id, document_id)
+        except Exception as e_store:
+            print(f"[Delete] Could not remove vector store chunks: {e_store}")
+
+        # 3. Remove file from disk
+        try:
+            if doc.file_path and os.path.exists(doc.file_path):
+                os.remove(doc.file_path)
+        except Exception as e_file:
+            print(f"[Delete] Could not remove file: {e_file}")
+
+        # 4. Remove Document record from DB
+        db.delete(doc)
+        db.commit()
+
+        return {"message": "Document deleted successfully.", "id": document_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        import traceback
+        print(f"[Delete Error]: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Delete error: {str(e)}")
