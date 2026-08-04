@@ -130,7 +130,7 @@ export default function Navbar() {
             </div>
             <div className="app-user-copy" style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{firstName}</span>
-              <span style={{ fontSize: 10, color: 'var(--text3)' }}>{user?.email?.split('@')[0] || 'Active'}</span>
+              <span style={{ fontSize: 10, color: 'var(--text3)' }}>{user?.field || user?.email || 'Student'}</span>
             </div>
           </div>
         </NavLink>

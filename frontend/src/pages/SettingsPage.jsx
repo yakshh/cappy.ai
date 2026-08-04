@@ -4,17 +4,16 @@ import { authService } from '../services'
 import { useTheme } from '../context/ThemeContext'
 import {
   User, Mail, Lock, Save, GraduationCap,
-  Moon, Sun, Bell, Shield, CheckCircle,
-  Eye, EyeOff, Palette
+  Moon, Sun, Shield, CheckCircle,
+  Eye, EyeOff, Palette, Info
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TABS = [
   { id: 'profile',   icon: User,     label: 'Profile'            },
   { id: 'security',  icon: Shield,   label: 'Security'           },
-  { id: 'prefs',     icon: Bell,     label: 'Appearance & Theme' },
-  { id: 'notifications', icon: Bell, label: 'Notifications' },
-]
+  { id: 'prefs',     icon: Palette,  label: 'Appearance & Theme' },
+  { id: 'about',     icon: Info,     label: 'About'              },
 ]
 
 export default function SettingsPage() {
@@ -40,11 +39,6 @@ export default function SettingsPage() {
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' })
   const [changingPwd, setChangingPwd] = useState(false)
   const [showPass, setShowPass] = useState(false)
-
-  // Notification settings are local UI preferences; no secrets are displayed.
-  const [docNotifications, setDocNotifications] = useState(localStorage.getItem('pref-doc-notifications') !== 'false')
-  const [autoRefresh, setAutoRefresh] = useState(localStorage.getItem('pref-auto-refresh') !== 'false')
-  const [weeklyDigest, setWeeklyDigest] = useState(localStorage.getItem('pref-weekly-digest') === 'true')
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { toast.error('Name cannot be empty.'); return }
@@ -81,13 +75,6 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveNotifications = () => {
-    localStorage.setItem('pref-doc-notifications', String(docNotifications))
-    localStorage.setItem('pref-auto-refresh', String(autoRefresh))
-    localStorage.setItem('pref-weekly-digest', String(weeklyDigest))
-    toast.success('Notification settings updated successfully!')
-  }
-
   const Label = ({ children }) => (
     <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)', marginBottom: 6 }}>
       {children}
@@ -113,7 +100,9 @@ export default function SettingsPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.full_name || 'User'}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text2)' }}>{user?.field || user?.email || 'Student'}</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.field || user?.email || 'Student'}
+            </div>
           </div>
         </div>
 
@@ -165,107 +154,76 @@ export default function SettingsPage() {
         {/* Security Tab */}
         {tab === 'security' && (
           <div className="card anim-in" style={{ padding: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Security & Password</h2>
-              <span className="tag tag-green"><Shield size={10} /> Password Protected</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>Password \& Authentication</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <Label>Current Password</Label>
+                <Label><Lock size={9} style={{ display: 'inline', marginRight: 5 }} />Current Password</Label>
                 <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={passwords.current}
-                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                  />
+                  <input className="input" type={showPass ? 'text' : 'password'} value={passwords.current} onChange={(e) => setPasswords({ ...passwords, current: e.target.value })} style={{ paddingRight: 38 }} />
+                  <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}>
+                    {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
                 </div>
               </div>
               <div>
-                <Label>New Password</Label>
-                <input
-                  className="input"
-                  type={showPass ? 'text' : 'password'}
-                  placeholder="At least 8 characters"
-                  value={passwords.new}
-                  onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                />
+                <Label><Lock size={9} style={{ display: 'inline', marginRight: 5 }} />New Password</Label>
+                <input className="input" type={showPass ? 'text' : 'password'} value={passwords.new} onChange={(e) => setPasswords({ ...passwords, new: e.target.value })} placeholder="Min 8 characters" />
               </div>
               <div>
-                <Label>Confirm New Password</Label>
-                <input
-                  className="input"
-                  type={showPass ? 'text' : 'password'}
-                  placeholder="Confirm new password"
-                  value={passwords.confirm}
-                  onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                />
+                <Label><Lock size={9} style={{ display: 'inline', marginRight: 5 }} />Confirm New Password</Label>
+                <input className="input" type={showPass ? 'text' : 'password'} value={passwords.confirm} onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })} placeholder="Repeat new password" />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 20 }}>
-              <button className="btn btn-primary" onClick={handleChangePassword} disabled={changingPwd}>
-                <Shield size={14} /> {changingPwd ? 'Updating...' : 'Update Password'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPass(!showPass)}
-                style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                {showPass ? <EyeOff size={13} /> : <Eye size={13} />} {showPass ? 'Hide Passwords' : 'Show Passwords'}
-              </button>
-            </div>
+            <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleChangePassword} disabled={changingPwd}>
+              {changingPwd ? 'Updating...' : <><Shield size={14} /> Update Password</>}
+            </button>
           </div>
         )}
 
         {/* Preferences / Theme Tab */}
         {tab === 'prefs' && (
           <div className="card anim-in" style={{ padding: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>Appearance \& Theme</h2>
+            
+            {/* Mode Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 20, borderBottom: '1px solid var(--border)' }}>
               <div>
-                <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Appearance & Theme</h2>
-                <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 3 }}>Choose a mode and a color palette for your study space.</p>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Theme Mode</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>Toggle between dark and light appearance</div>
               </div>
-              <Palette size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 22 }}>
-              {[
-                { id: 'dark',  icon: Moon, label: 'Dark Mode',  desc: 'Low light, easy on the eyes', bg: '#0D0C0C', surface: '#141212', textCol: '#EDE9E9' },
-                { id: 'light', icon: Sun,  label: 'Light Mode', desc: 'Bright linen workspace',       bg: '#F5F3F0', surface: '#FDFCFB', textCol: '#1E1A1A' },
-              ].map((theme) => {
-                const active = (theme.id === 'dark') === isDark
-                return (
-                  <button
-                    key={theme.id}
-                    onClick={() => setIsDark(theme.id === 'dark')}
-                    style={{
-                      padding: 16, borderRadius: 10, cursor: 'pointer', border: `2px solid`,
-                      borderColor: active ? 'var(--accent)' : 'var(--border)',
-                      background: theme.bg, textAlign: 'left', position: 'relative', transition: 'border-color 0.15s'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <theme.icon size={15} style={{ color: theme.textCol }} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: theme.textCol, fontFamily: 'Space Grotesk' }}>{theme.label}</span>
-                    </div>
-                    <p style={{ fontSize: 11, color: theme.textCol, opacity: 0.7, margin: 0 }}>{theme.desc}</p>
-                    {active && (
-                      <div style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                        <CheckCircle size={12} color="#fff" />
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div>
-                  <h3 className="font-display" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Color palette</h3>
-                  <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>Preview and switch the accent style instantly.</p>
-                </div>
-                <span style={{ fontSize: 10, color: 'var(--text3)' }}>{isDark ? 'Dark' : 'Light'} palette</span>
+              <div style={{ display: 'flex', gap: 6, background: 'var(--surface2)', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setIsDark(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 500,
+                    background: isDark ? 'var(--surface)' : 'transparent',
+                    color: isDark ? 'var(--accent)' : 'var(--text2)',
+                    boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
+                  }}
+                >
+                  <Moon size={13} /> Dark
+                </button>
+                <button
+                  onClick={() => setIsDark(false)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 500,
+                    background: !isDark ? 'var(--surface)' : 'transparent',
+                    color: !isDark ? 'var(--accent)' : 'var(--text2)',
+                    boxShadow: !isDark ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
+                  }}
+                >
+                  <Sun size={13} /> Light
+                </button>
               </div>
-              <div className="theme-palette-grid">
+            </div>
+
+            {/* Color Palette Grid */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Accent Palette</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 14 }}>Choose a curated color theme for your workspace</div>
+              <div className="theme-palette-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
                 {colorThemes.map((theme) => {
                   const active = theme.id === colorTheme
                   const paletteClass = `theme-preview theme-preview-${theme.id}`
@@ -296,31 +254,97 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Notifications Tab */}
-        {tab === 'notifications' && (
-          <div className="card anim-in" style={{ padding: 24 }}>
-            <h2 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Notification Settings</h2>
-            <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 18 }}>Control helpful app updates. API keys and private credentials are never shown here.</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {[
-                ['Document Processing Toasts', 'Show alerts when uploaded PDFs finish indexing.', docNotifications, setDocNotifications],
-                ['Dashboard Auto-refresh', 'Refresh document status automatically while you work.', autoRefresh, setAutoRefresh],
-                ['Weekly Learning Summary', 'Keep a local preference for a weekly progress reminder.', weeklyDigest, setWeeklyDigest],
-              ].map(([label, description, enabled, setter]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text2)' }}>{description}</div>
-                  </div>
-                  <button type="button" onClick={() => setter(!enabled)} className={`toggle ${enabled ? 'on' : ''}`} aria-label={`Toggle ${label}`} />
+        {/* About Tab */}
+        {tab === 'about' && (
+          <div className="card anim-in" style={{ padding: 26 }}>
+            
+            {/* Header Box */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 11,
+                background: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', flexShrink: 0,
+                boxShadow: '0 4px 14px var(--accent-dim)'
+              }}>
+                <GraduationCap size={24} />
+              </div>
+              <div>
+                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.2 }}>
+                  About
+                </h2>
+                <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, marginTop: 3 }}>
+                  Study Intelligence Platform
                 </div>
-              ))}
+              </div>
             </div>
 
-            <button className="btn btn-primary" style={{ marginTop: 20, padding: '10px 20px' }} onClick={handleSaveNotifications}>
-              <Save size={14} /> Save Notification Settings
-            </button>
+            {/* Platform Description */}
+            <p style={{ fontSize: 13.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 24 }}>
+              cappy.ai is an artificial intelligence platform designed to help students analyze course materials, accelerate revision, and master university examinations.
+            </p>
+
+            {/* Feature Cards Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              
+              <div style={{
+                padding: '16px 18px',
+                borderRadius: 'var(--radius)',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                  Document Processing and Indexing
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.5 }}>
+                  Upload course PDFs and study guides up to 25MB. The system automatically extracts, indexes, and chunks text for fast retrieval.
+                </div>
+              </div>
+
+              <div style={{
+                padding: '16px 18px',
+                borderRadius: 'var(--radius)',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                  RAG Grounded Intelligence
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.5 }}>
+                  Ask questions across your uploaded documents. Answers are generated directly from your uploaded materials with exact page citations.
+                </div>
+              </div>
+
+              <div style={{
+                padding: '16px 18px',
+                borderRadius: 'var(--radius)',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                  Automated Summaries, Quizzes, and Flashcards
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.5 }}>
+                  Generate short, detailed, or bulleted notes, multiple-choice quizzes, and study flashcards directly from lecture content.
+                </div>
+              </div>
+
+              <div style={{
+                padding: '16px 18px',
+                borderRadius: 'var(--radius)',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                  Exam Paper Synthesis and Step-by-Step Solutions
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.5 }}>
+                  Create university-format sample question papers grounded in your syllabus, or upload existing question papers to generate step-by-step model solutions.
+                </div>
+              </div>
+
+            </div>
+
           </div>
         )}
 

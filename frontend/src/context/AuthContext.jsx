@@ -6,13 +6,37 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
+      const token = localStorage.getItem('token')
       const stored = localStorage.getItem('user')
+      if (!token) return null
       return stored ? JSON.parse(stored) : null
     } catch {
       return null
     }
   })
   const [loading, setLoading] = useState(false)
+
+  // Verify auth session on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      authService.getMe()
+        .then(({ data }) => {
+          if (data) {
+            setUser(data)
+            localStorage.setItem('user', JSON.stringify(data))
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setUser(null)
+        })
+    } else {
+      localStorage.removeItem('user')
+      setUser(null)
+    }
+  }, [])
 
   const login = useCallback(async (email, password) => {
     setLoading(true)
