@@ -242,10 +242,14 @@ def query_store(
             # Try generating query embedding vector
             q_vec = None
             try:
-                from rag.embeddings import embed_query, embed_texts
+                from .embeddings import embed_query, embed_texts
                 q_vec = embed_query(query_text)
-            except Exception as e_emb:
-                print(f"[Query Embed Error]: {e_emb}")
+            except Exception:
+                try:
+                    from embeddings import embed_query, embed_texts
+                    q_vec = embed_query(query_text)
+                except Exception as e_emb:
+                    print(f"[Query Embed Error]: {e_emb}")
 
             scored = []
             for c in db_chunks:
