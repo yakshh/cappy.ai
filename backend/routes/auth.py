@@ -15,8 +15,6 @@ from models.user import User
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
 class RegisterRequest(BaseModel):
     full_name: str
     email: str
@@ -34,8 +32,6 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: dict
 
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):

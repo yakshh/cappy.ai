@@ -25,7 +25,6 @@ try:
 except Exception as e:
     print(f"[Database Error]: {e}")
 
-# ── Routers ───────────────────────────────────────────────────────────────────
 from routes.auth import router as auth_router
 from routes.documents import router as documents_router
 from routes.chat import router as chat_router
@@ -37,7 +36,6 @@ from routes.search import router as search_router
 from routes.users import router as users_router
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: verify DB tables."""
@@ -50,7 +48,6 @@ async def lifespan(app: FastAPI):
     print("[Shutdown] Application shutting down.")
 
 
-# ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title=settings.APP_NAME,
     description="RAG-powered study assistant — answers questions from your uploaded PDFs.",
@@ -60,7 +57,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -69,7 +65,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Register routers (both with and without /api prefix for Vercel route compatibility) ──
+# Register routers
 routers = [
     auth_router,
     documents_router,
@@ -86,14 +82,12 @@ for r in routers:
     app.include_router(r)
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["Health"])
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "version": "1.0.0"}
 
 
-# ── Dev server entry ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

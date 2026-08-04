@@ -30,8 +30,6 @@ def get_gemini_model():
     return _gemini_model
 
 
-# ── AI Provider Callers ────────────────────────────────────────────────────────
-
 def _call_gemini(prompt: str, response_json: bool = False, api_key: Optional[str] = None) -> str:
     """Call Google Gemini API with token-conserving generation config."""
     key = api_key or settings.GEMINI_API_KEY
@@ -235,8 +233,6 @@ def _generate_text(prompt: str, response_json: bool = False) -> str:
     )
 
 
-# ── Context builder ────────────────────────────────────────────────────────────
-
 def _build_context(chunks: List[Dict]) -> str:
     """Format retrieved chunks into a numbered context block."""
     if not chunks:
@@ -249,8 +245,6 @@ def _build_context(chunks: List[Dict]) -> str:
         )
     return "\n\n---\n\n".join(parts)
 
-
-# ── System prompt template ─────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are cappy.ai, an AI learning assistant. Your ONLY job is to answer questions using the provided document excerpts below.
 
@@ -267,7 +261,6 @@ CONTEXT FROM UPLOADED DOCUMENTS:
 ---
 """
 
-# ── Main generation functions ──────────────────────────────────────────────────
 
 def generate_answer(question: str, chunks: List[Dict]) -> Dict:
     """

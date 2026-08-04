@@ -5,7 +5,7 @@ const api = axios.create({
   timeout: 300000,
 })
 
-// ── Request interceptor — attach JWT token ────────────────────────────────────
+// Request interceptor — attach JWT token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
@@ -17,7 +17,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// ── Response interceptor — auto-logout on 401 ─────────────────────────────────
+// Response interceptor — auto-logout on 401
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -23,8 +23,6 @@ from rag.vector_store import add_chunks_to_store, delete_document_from_store
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
 
 
-# ── Background task: process and embed a PDF ─────────────────────────────────
-
 def _process_document(document_id: int, file_path: str, user_id: int, filename: str, db_url: str):
     """
     Run PDF extraction + embedding in the background.
@@ -92,8 +90,6 @@ def _process_document(document_id: int, file_path: str, user_id: int, filename: 
         db.commit()
         db.close()
 
-
-# ── Upload endpoint ────────────────────────────────────────────────────────────
 
 from typing import List
 
@@ -266,8 +262,6 @@ async def upload_chunk(
     }
 
 
-# ── List documents ─────────────────────────────────────────────────────────────
-
 @router.get("/")
 def list_documents(
     db: Session = Depends(get_db),
@@ -294,8 +288,6 @@ def list_documents(
         for d in docs
     ]
 
-
-# ── Get single document ────────────────────────────────────────────────────────
 
 @router.get("/{document_id}")
 def get_document(
@@ -350,8 +342,6 @@ def update_document_category(
     db.commit()
     return {"id": doc.id, "category": doc.category}
 
-
-# ── Delete document ────────────────────────────────────────────────────────────
 
 @router.delete("/{document_id}", status_code=status.HTTP_200_OK)
 def delete_document(

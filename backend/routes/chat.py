@@ -20,8 +20,6 @@ from rag.generator import generate_answer
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
 class ChatRequest(BaseModel):
     question: str
     conversation_id: Optional[int] = None
@@ -34,8 +32,6 @@ class ChatResponse(BaseModel):
     conversation_id: int
     message_id: int
 
-
-# ── Helper ────────────────────────────────────────────────────────────────────
 
 def _get_or_create_conversation(
     db: Session,
@@ -61,8 +57,6 @@ def _get_or_create_conversation(
     db.refresh(conv)
     return conv
 
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=ChatResponse)
 def chat(
