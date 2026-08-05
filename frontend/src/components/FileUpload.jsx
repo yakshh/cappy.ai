@@ -135,9 +135,9 @@ export default function FileUpload({ onUploadSuccess }) {
         className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer
                     transition-all duration-300
                     ${isDragActive
-                      ? 'border-brand-500 bg-brand-500/10 scale-[1.02]'
-                      : 'border-white/10 hover:border-brand-500/50 hover:bg-white/3'
-                    }`}
+            ? 'border-brand-500 bg-brand-500/10 scale-[1.02]'
+            : 'border-white/10 hover:border-brand-500/50 hover:bg-white/3'
+          }`}
       >
         <input {...getInputProps()} id="file-input" />
         <div className="flex flex-col items-center gap-3">

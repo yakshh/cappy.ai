@@ -15,6 +15,7 @@ from config import settings
 from database import get_db
 from models.user import User
 
+# OAuth2 scheme — reads token from Authorization: Bearer <token> header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
@@ -78,4 +79,3 @@ def get_current_user(
             detail="Inactive user account",
         )
     return user
-

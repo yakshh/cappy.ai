@@ -1,24 +1,25 @@
 # cappy.ai
 
-cappy.ai is a Retrieval-Augmented Generation (RAG) platform for study materials. It processes PDF notes, generates vector embeddings, and enables AI-assisted learning through document summaries, adaptive MCQs, 3D flashcards, semantic search, and university exam papers with step-by-step solutions.
+cappy.ai is an intelligent Retrieval-Augmented Generation (RAG) platform for study materials. It processes PDF notes, generates embeddings, and enables AI-assisted learning through document summaries, adaptive MCQs, 3D flashcards, semantic search, and university exam papers with step-by-step model solutions.
 
 ---
 
 ## Key Features
 
-- **Document Management**: Drag-and-drop PDF ingestion, text extraction, page parsing, and category organization.
-- **RAG Summaries**: Grounded note summarization with customizable lengths and focus topics.
-- **Quiz & Flashcards**: Adaptive multiple-choice quizzes with explanations and interactive 3D flashcards.
+- **Document Management**: Drag-and-drop PDF ingestion, chunked upload for serverless environments, text extraction, and category organization.
+- **RAG Summaries**: Grounded note summarization with customizable styles (Overview, Detailed, Bullets) and focus topics, with direct `.txt` export.
+- **Quiz & Flashcards**: Adaptive multiple-choice quizzes with explanations, interactive 3D flashcards, and instant `.txt` export.
 - **Exam Paper & Solver**: Generates 70-mark university question papers and step-by-step solutions with direct PDF export.
-- **Semantic Search**: Vector similarity search over indexed study materials with exact source citations.
+- **Semantic Search**: Vector similarity search over indexed study materials with accurate match relevance scoring and source citations.
+- **User Profiles & Custom Themes**: Customizable field/department selection, dark mode aesthetics, and color themes.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: React 18, Vite, React Router v6, Tailwind CSS v3, Framer Motion, Lucide React, html2pdf.js, Axios.
-- **Backend**: Python 3.10+, FastAPI, SQLite, SQLAlchemy, ChromaDB, PyPDF2, pdfplumber.
-- **LLM Engine**: Groq Cloud (`llama-3.3-70b-versatile`) with Gemini API (`gemini-1.5-flash`) and local Ollama fallbacks.
+- **Frontend**: React 18, Vite, React Router v6, Vanilla CSS / Tailwind CSS v3, Framer Motion, Lucide React, html2pdf.js, Axios.
+- **Backend**: Python 3.10+, FastAPI, PostgreSQL (Neon) / SQLite, SQLAlchemy, ChromaDB, PyPDF2, pdfplumber.
+- **LLM Engine**: Multi-provider fallback chain (Groq Cloud `llama-3.3-70b-versatile` & Google Gemini `gemini-1.5-flash`).
 
 ---
 
@@ -26,25 +27,27 @@ cappy.ai is a Retrieval-Augmented Generation (RAG) platform for study materials.
 
 ```text
 cappy.ai/
+├── api/
+│   └── index.py        # Vercel serverless entry point
 ├── backend/
 │   ├── app.py          # FastAPI entry point & CORS configuration
-│   ├── config.py       # Application settings & environment configuration
-│   ├── database.py     # SQLite engine & database session manager
-│   ├── models/         # ORM models (User, Document)
-│   ├── rag/            # Embeddings, vector store & RAG generation logic
+│   ├── auth.py         # JWT authentication & password hashing
+│   ├── config.py       # Application settings & environment variables
+│   ├── database.py     # Database session manager & dynamic schema migrations
+│   ├── models/         # SQLAlchemy ORM models (User, Document, DocumentChunk, Conversation)
+│   ├── rag/            # Vector store, hybrid relevance search & RAG generation logic
 │   ├── routes/         # API routes (Auth, Documents, Summary, Quiz, Sample Paper, Search, Users)
 │   ├── services/       # PDF parsing & text chunking services
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
-│   ├── tailwind.config.js
 │   └── src/
 │       ├── App.jsx     # Application routing
-│       ├── components/ # Navbar, DocumentCard, FileUpload, Category selector
-│       ├── pages/      # Dashboard, Summary, Quiz, SamplePaper, Search, Settings
+│       ├── components/ # Navbar, Sidebar, DocumentCard, FileUpload, Category selector
+│       ├── pages/      # Dashboard, Summary, Quiz, SamplePaper, Search, Settings, Login, Register
 │       └── services/   # Axios API client modules
+└── vercel.json         # Vercel serverless routing configuration
 ```
 
 ---
@@ -75,13 +78,12 @@ cappy.ai/
    ```env
    APP_NAME="cappy.ai"
    SECRET_KEY="your-secret-key"
-   GROQ_API_KEY="your-groq-api-key"
-   GEMINI_API_KEY="your-gemini-api-key"
+   DATABASE_URL="postgresql://user:pass@ep-host.neon.tech/neondb?sslmode=require"
+   GROQ_API_KEY="your-primary-groq-key"
+   GROQ_API_KEY_2="your-fallback-groq-key"
+   GEMINI_API_KEY="your-primary-gemini-key"
+   GEMINI_API_KEY_2="your-fallback-gemini-key"
    ```
-
-   For Vercel, set `DATABASE_URL` to a hosted PostgreSQL connection string in
-   the project environment variables. Vercel serverless storage is temporary,
-   so the local SQLite fallback is only suitable for development.
 
    Start server:
    ```bash
@@ -104,12 +106,13 @@ cappy.ai/
 | `/api/auth/register` | `POST` | User registration |
 | `/api/auth/login` | `POST` | User login & JWT token issuance |
 | `/api/documents/upload` | `POST` | PDF document upload & indexing |
-| `/api/documents/` | `GET` | List user documents & category tags |
-| `/api/documents/{id}` | `DELETE` | Delete document & vector embeddings |
+| `/api/documents/upload-chunk` | `POST` | Chunked upload for large PDF files |
+| `/api/documents/` | `GET` | List user documents & categories |
+| `/api/documents/{id}` | `DELETE` | Delete document & associated chunks |
 | `/api/documents/{id}/category` | `PATCH` | Update document subject category |
 | `/api/summary/` | `POST` | Generate RAG summary |
 | `/api/quiz/` | `POST` | Generate quiz or 3D flashcards |
 | `/api/sample-paper/` | `POST` | Generate 70-mark university question paper |
-| `/api/sample-paper/solve` | `POST` | Generate step-by-step paper solutions |
-| `/api/search/` | `POST` | Perform semantic vector search |
-| `/api/users/me` | `PATCH` | Update user profile details |
+| `/api/sample-paper/solve-upload` | `POST` | Solve uploaded exam paper & generate model solutions |
+| `/api/search/` | `POST` | Perform semantic & hybrid relevance search |
+| `/api/users/me` | `GET / PATCH` | Manage user profile and stream details |

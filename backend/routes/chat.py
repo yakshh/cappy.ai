@@ -13,7 +13,6 @@ from auth import get_current_user
 from database import get_db
 from models.user import User
 from models.conversation import Conversation, Message
-from models.document import Document
 from rag.vector_store import query_store
 from rag.generator import generate_answer
 
@@ -23,7 +22,7 @@ router = APIRouter(prefix="/api/chat", tags=["Chat"])
 class ChatRequest(BaseModel):
     question: str
     conversation_id: Optional[int] = None
-    document_ids: Optional[List[int]] = None  # Filter to specific docs
+    document_ids: Optional[List[int]] = None
 
 
 class ChatResponse(BaseModel):
@@ -49,7 +48,6 @@ def _get_or_create_conversation(
             raise HTTPException(status_code=404, detail="Conversation not found.")
         return conv
 
-    # Auto-title from first question (first 60 chars)
     title = first_question[:60] + ("..." if len(first_question) > 60 else "")
     conv = Conversation(user_id=user_id, title=title)
     db.add(conv)
@@ -64,28 +62,24 @@ def chat(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """RAG chat: retrieve relevant chunks → generate grounded answer → save history."""
+    """RAG chat: retrieve relevant chunks -> generate grounded answer -> save history."""
 
     question = payload.question.strip()
     if not question:
         raise HTTPException(status_code=422, detail="Question cannot be empty.")
 
-    # 1. Retrieve relevant chunks from ChromaDB
     chunks = query_store(
         user_id=current_user.id,
         query_text=question,
         document_ids=payload.document_ids,
     )
 
-    # 2. Generate answer via Gemini
     result = generate_answer(question=question, chunks=chunks)
 
-    # 3. Get or create conversation
     conv = _get_or_create_conversation(
         db, current_user.id, payload.conversation_id, question
     )
 
-    # 4. Save user message
     user_msg = Message(
         conversation_id=conv.id,
         role="user",
@@ -93,7 +87,6 @@ def chat(
     )
     db.add(user_msg)
 
-    # 5. Save assistant message with sources as JSON
     assistant_msg = Message(
         conversation_id=conv.id,
         role="assistant",

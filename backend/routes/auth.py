@@ -1,7 +1,8 @@
 """
-routes/auth.py — Registration and login endpoints.
+routes/auth.py — Registration, login, and user auth endpoints.
 """
 
+import traceback
 from datetime import timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +15,7 @@ from database import get_db, ensure_db_schema
 from models.user import User
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
 
 class RegisterRequest(BaseModel):
     full_name: str
@@ -103,7 +105,6 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         print(f"[Register Error]: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
 
@@ -147,7 +148,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         print(f"[Login Error]: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Login error: {str(e)}")
 

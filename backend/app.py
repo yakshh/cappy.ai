@@ -5,15 +5,14 @@ Registers all routers, configures CORS, and initializes the database.
 
 import sys
 from pathlib import Path
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 # Ensure backend directory is in sys.path for Vercel Serverless Function imports
 BASE_BACKEND_DIR = Path(__file__).resolve().parent
 if str(BASE_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_BACKEND_DIR))
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from config import settings
 from database import init_db
@@ -65,7 +64,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routers
+# Register all application routers
 routers = [
     auth_router,
     documents_router,
