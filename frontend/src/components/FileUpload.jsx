@@ -146,10 +146,10 @@ export default function FileUpload({ onUploadSuccess }) {
             <Upload size={26} className={isDragActive ? 'text-brand-400' : 'text-slate-400'} />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
               {isDragActive ? 'Drop your PDFs here!' : 'Drag & drop your PDFs'}
             </p>
-            <p className="text-xs text-slate-500 mt-1">or click to browse · Max 10 MB</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text2)' }}>or click to browse · Max 10 MB</p>
           </div>
         </div>
       </div>
@@ -158,13 +158,13 @@ export default function FileUpload({ onUploadSuccess }) {
       {selectedFiles.length > 0 && (
         <div className="space-y-2">
           {selectedFiles.map((file, idx) => (
-            <div key={idx} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 animate-fade-in">
-              <div className="w-9 h-9 rounded-lg bg-brand-500/20 flex items-center justify-center flex-shrink-0">
-                <FileText size={16} className="text-brand-400" />
+            <div key={idx} className="flex items-center gap-3 px-4 py-3 rounded-xl animate-fade-in" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-dim)' }}>
+                <FileText size={16} style={{ color: 'var(--accent)' }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{file.name}</p>
-                <p className="text-xs text-slate-500">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{file.name}</p>
+                <p className="text-xs" style={{ color: 'var(--text2)' }}>{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
               </div>
               {!uploading && (
                 <button

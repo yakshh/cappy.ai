@@ -25,52 +25,72 @@ export default function CategoryDocumentSelector({ documents, selectedIds, onTog
   }
 
   return (
-    <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
       {Object.entries(grouped).map(([cat, docs]) => {
         const catDocIds = docs.map((d) => d.id)
         const allSelected = catDocIds.every((id) => selectedIds.includes(id))
         const isCollapsed = collapsedCategories[cat]
 
         return (
-          <div key={cat} className="rounded-xl border border-white/5 bg-white/5 overflow-hidden">
+          <div key={cat} style={{ borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface2)', overflow: 'hidden' }}>
             {/* Category Header */}
-            <div className="flex items-center justify-between px-3 py-2 bg-white/5 hover:bg-white/10 transition-all cursor-pointer">
-              <div className="flex items-center gap-2" onClick={() => toggleCollapse(cat)}>
-                {isCollapsed ? <ChevronRight size={13} className="text-slate-400" /> : <ChevronDown size={13} className="text-slate-400" />}
-                <Folder size={13} className="text-brand-400" />
-                <span className="text-xs font-bold text-white">{cat}</span>
-                <span className="text-[10px] text-slate-400 font-medium">({docs.length})</span>
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px', background: 'var(--surface2)', cursor: 'pointer',
+                borderBottom: isCollapsed ? 'none' : '1px solid var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={() => toggleCollapse(cat)}>
+                {isCollapsed ? <ChevronRight size={13} style={{ color: 'var(--text3)' }} /> : <ChevronDown size={13} style={{ color: 'var(--text3)' }} />}
+                <Folder size={14} style={{ color: 'var(--accent)' }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{cat}</span>
+                <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>({docs.length})</span>
               </div>
 
               {/* Master Select All Checkbox for Category */}
               <button
                 type="button"
                 onClick={() => handleToggleCategory(catDocIds, !allSelected)}
-                className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-white font-medium"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5, fontSize: 11,
+                  color: 'var(--accent)', background: 'transparent', border: 'none',
+                  cursor: 'pointer', fontWeight: 600
+                }}
               >
-                {allSelected ? <CheckSquare size={13} className="text-brand-400" /> : <Square size={13} className="text-slate-500" />}
+                {allSelected ? <CheckSquare size={13} style={{ color: 'var(--accent)' }} /> : <Square size={13} style={{ color: 'var(--text3)' }} />}
                 <span>{allSelected ? 'Deselect Category' : 'Select Category'}</span>
               </button>
             </div>
 
             {/* Document Checkboxes */}
             {!isCollapsed && (
-              <div className="p-2 space-y-1 bg-black/10">
-                {docs.map((doc) => (
-                  <label
-                    key={doc.id}
-                    className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-all"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(doc.id)}
-                      onChange={() => onToggleDoc(doc.id)}
-                      className="accent-brand-500 rounded cursor-pointer"
-                    />
-                    <FileText size={13} className="text-brand-400 flex-shrink-0" />
-                    <span className="text-xs text-slate-300 truncate flex-1">{doc.filename}</span>
-                  </label>
-                ))}
+              <div style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 4, background: 'var(--surface)' }}>
+                {docs.map((doc) => {
+                  const isSelected = selectedIds.includes(doc.id)
+                  return (
+                    <label
+                      key={doc.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px',
+                        borderRadius: 7, cursor: 'pointer', transition: 'all 0.15s',
+                        background: isSelected ? 'var(--accent-dim)' : 'transparent',
+                        border: isSelected ? '1px solid var(--accent)' : '1px solid transparent'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggleDoc(doc.id)}
+                        style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+                      />
+                      <FileText size={13} style={{ color: isSelected ? 'var(--accent)' : 'var(--text3)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--accent)' : 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                        {doc.filename}
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
             )}
           </div>
