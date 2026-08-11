@@ -16,3 +16,4 @@ numpy>=1.26.0
 python-dotenv==1.0.1
 aiofiles==23.2.1
 Pillow>=10.0.0
+easyocr>=1.7.0
