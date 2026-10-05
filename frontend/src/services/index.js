@@ -8,6 +8,7 @@ import {
   updateProfile as updateAuthProfile,
 } from 'firebase/auth'
 import {
+  Bytes,
   addDoc,
   collection,
   deleteField,
@@ -136,13 +137,27 @@ export const authService = {
 // ── Documents ──────────────────────────────────────────────────────────────────
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024
+// A Firestore field holds at most ~1 MiB, so the original PDF is stored as 900 KB pieces.
+// This keeps the original file free, using the shared 1 GiB Firestore allowance.
+const FILE_PIECE_BYTES = 900 * 1024
+const pieceId = (n) => String(n).padStart(4, '0')
 
 const asDocument = (snap) => ({ id: snap.id, ...snap.data() })
+
+// Uploads run in the browser, so a document still "processing" long after it started was interrupted.
+const STALE_PROCESSING_MS = 15 * 60 * 1000
+const asListedDocument = (snap) => {
+  const d = asDocument(snap)
+  if (d.status === 'processing' && Date.now() - new Date(d.created_at).getTime() > STALE_PROCESSING_MS) {
+    d.status = 'failed'
+  }
+  return d
+}
 
 export const documentService = {
   list: wrap(async () => {
     const snap = await getDocs(query(col('documents'), orderBy('created_at', 'desc')))
-    return snap.docs.map(asDocument)
+    return snap.docs.map(asListedDocument)
   }, 'Could not load documents'),
 
   get: wrap(async (id) => {
@@ -151,7 +166,10 @@ export const documentService = {
     return asDocument(snap)
   }),
 
-  /** Read a PDF in the browser, split it into chunks and save them. Returns the new document. */
+  /**
+   * Read a PDF in the browser (OCR for scanned pages), save its text as searchable chunks,
+   * and keep the original file. `onProgress` receives 0..1. Returns the new document.
+   */
   upload: wrap(async (file, onProgress) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) throw apiError('Only PDF files are allowed.', 415)
     if (file.size > MAX_PDF_BYTES) throw apiError('PDF is larger than 10 MB.', 413)
@@ -169,9 +187,17 @@ export const documentService = {
     await setDoc(docRef, meta)
 
     try {
-      const pages = await extractPdfPages(file, (done, total) => onProgress?.(done / total))
+      const { pages, stats } = await extractPdfPages(file, (fraction) => onProgress?.(fraction * 0.75))
       const chunks = chunkPages(pages)
       if (!chunks.length) throw apiError('No readable text found in this PDF.', 422)
+
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const pieces = Math.ceil(bytes.length / FILE_PIECE_BYTES)
+      for (let n = 0; n < pieces; n++) {
+        const part = bytes.subarray(n * FILE_PIECE_BYTES, (n + 1) * FILE_PIECE_BYTES)
+        await setDoc(doc(docRef, 'files', pieceId(n)), { data: Bytes.fromUint8Array(part) })
+        onProgress?.(0.75 + 0.2 * ((n + 1) / pieces))
+      }
 
       const batch = writeBatch(db)
       for (let start = 0, n = 0; start < chunks.length; start += BLOCK_SIZE, n++) {
@@ -179,9 +205,17 @@ export const documentService = {
           chunks: chunks.slice(start, start + BLOCK_SIZE),
         })
       }
-      Object.assign(meta, { page_count: pages.length, chunk_count: chunks.length, status: 'ready' })
+      Object.assign(meta, {
+        page_count: stats.total,
+        chunk_count: chunks.length,
+        ocr_pages: stats.ocr + stats.ai_ocr,
+        has_original: true,
+        original_pieces: pieces,
+        status: 'ready',
+      })
       batch.update(docRef, meta)
       await batch.commit()
+      onProgress?.(1)
     } catch (err) {
       await updateDoc(docRef, { status: 'failed' }).catch(() => {})
       throw err
@@ -190,14 +224,29 @@ export const documentService = {
   }, 'Upload failed'),
 
   delete: wrap(async (id) => {
-    const blocks = await getDocs(collection(db, 'users', uid(), 'documents', id, 'blocks'))
+    const docRef = ref('documents', id)
+    const [blocks, files] = await Promise.all([getDocs(collection(docRef, 'blocks')), getDocs(collection(docRef, 'files'))])
     const batch = writeBatch(db)
-    blocks.docs.forEach((b) => batch.delete(b.ref))
-    batch.delete(ref('documents', id))
+    ;[...blocks.docs, ...files.docs].forEach((d) => batch.delete(d.ref))
+    batch.delete(docRef)
     await batch.commit()
     forgetDocument(id)
     return { message: 'Document deleted successfully.', id }
   }, 'Delete failed'),
+
+  /** Save the original PDF back to the computer. */
+  download: wrap(async (id, filename) => {
+    const snap = await getDocs(query(collection(ref('documents', id), 'files'), orderBy('__name__')))
+    if (snap.empty) throw apiError('The original file was not saved for this document.', 404)
+    const blob = new Blob(snap.docs.map((d) => d.data().data.toUint8Array()), { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const link = Object.assign(document.createElement('a'), { href: url, download: filename })
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    return { id }
+  }, 'Download failed'),
 
   updateCategory: wrap(async (id, category) => {
     const next = category.trim() || 'General'
@@ -347,7 +396,7 @@ async function useDailySolve() {
 }
 
 async function pdfText(file) {
-  const pages = await extractPdfPages(file)
+  const { pages } = await extractPdfPages(file)
   return pages.map((p) => p.text).join('\n')
 }
 

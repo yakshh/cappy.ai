@@ -242,7 +242,7 @@ export default function SamplePaperPage() {
         {/* Document Selector */}
         <div className="card" style={{ padding: 14, flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text3)', marginBottom: 8 }}>
-            Context RAG Docs
+            Study Documents
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {loadingDocs ? (

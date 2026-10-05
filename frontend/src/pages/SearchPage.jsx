@@ -93,8 +93,8 @@ export default function SearchPage() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '40px 0', textAlign: 'center' }}>
           <Search size={32} style={{ color: 'var(--text3)' }} />
           <div>
-            <p className="font-display" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 5 }}>Search Study Notes with Vector Math</p>
-            <p style={{ fontSize: 13, color: 'var(--text2)' }}>Semantic search finds conceptual meanings across all your uploaded PDFs.</p>
+            <p className="font-display" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 5 }}>Search Your Study Notes</p>
+            <p style={{ fontSize: 13, color: 'var(--text2)' }}>Type a few keywords and find the best matching passages across all your uploaded PDFs, scanned pages included.</p>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 4 }}>
             {SUGGESTIONS.map((s) => (
@@ -136,7 +136,7 @@ export default function SearchPage() {
           {/* Header Row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', marginBottom: 4 }}>
             <span style={{ fontSize: 12, color: 'var(--text2)' }}>
-              <strong style={{ color: 'var(--text)' }}>{results.length} results</strong> for "{query}"
+              <strong style={{ color: 'var(--text)' }}>{results.length} {results.length === 1 ? 'result' : 'results'}</strong> for "{query}"
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button
@@ -147,14 +147,14 @@ export default function SearchPage() {
                 <ArrowUpDown size={12} /> {sortOrder === 'desc' ? 'Highest Match First' : 'Lowest Match First'}
               </button>
               <span style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Layers size={11} /> 384D Vector Cosine
+                <Layers size={11} /> Keyword relevance
               </span>
             </div>
           </div>
 
           {results.length === 0 ? (
             <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-              <p style={{ fontSize: 14, color: 'var(--text2)' }}>No matching chunks found in vector store.</p>
+              <p style={{ fontSize: 14, color: 'var(--text2)' }}>No passages matched those keywords. Try different or fewer words.</p>
               <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>Try searching with broader terms or upload more PDFs.</p>
             </div>
           ) : (

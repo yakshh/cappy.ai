@@ -137,7 +137,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <Label><Mail size={9} style={{ display: 'inline', marginRight: 5 }} />Email Address</Label>
-                <input className="input" type="email" value={email} disabled title="Your email is your login and cannot be changed here" />
+                <input className="input" type="email" value={email} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} title="Your email is your login and cannot be changed here" />
               </div>
               <div>
                 <Label><GraduationCap size={9} style={{ display: 'inline', marginRight: 5 }} />Field</Label>
@@ -299,7 +299,7 @@ export default function SettingsPage() {
                 border: '1px solid var(--border)',
               }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-                  RAG Grounded Intelligence
+                  Answers grounded in your own notes
                 </div>
                 <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.5 }}>
                   Ask questions across your uploaded documents. Answers are generated directly from your uploaded materials with exact page citations.

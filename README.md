@@ -8,7 +8,7 @@ A study assistant that runs entirely on Firebase's free plan. Upload your PDF no
 
 | Feature | What it does |
 | :--- | :--- |
-| Documents | Upload PDFs. Text is read in your browser, scanned pages go through Gemini vision |
+| Documents | Upload PDFs. Text is read in your browser, scanned pages are read with OCR, and the original file is kept so you can download it again |
 | Summaries | Short, detailed or bullet summaries, optionally about one topic |
 | Quiz and flashcards | Multiple-choice quizzes and flip cards |
 | Exam papers | Generate a 70-mark paper, or upload one and get model answers |
@@ -24,7 +24,7 @@ A study assistant that runs entirely on Firebase's free plan. Upload your PDF no
 | Login | Firebase Authentication (email and password) |
 | Database | Cloud Firestore |
 | AI | Gemini through Firebase AI Logic |
-| PDF reading | pdf.js in the browser |
+| PDF reading | pdf.js, plus Tesseract OCR in the browser |
 | Hosting | Firebase Hosting |
 
 There is no server. The browser talks to Firebase directly, and Firestore security rules make sure each person can only see their own data.
@@ -107,7 +107,7 @@ For local development, the first run prints a debug token in the browser console
 | Limit | Value | Effect |
 | :--- | :--- | :--- |
 | Firestore reads | 50,000 per day | Notes are stored in blocks, so one search costs a few reads |
-| Firestore writes | 20,000 per day | An upload uses only a handful |
-| Firestore storage | 1 GiB | Only text is stored, never the PDF |
+| Firestore writes | 20,000 per day | An upload uses one write per MB of PDF, plus a few more |
+| Firestore storage | 1 GiB, shared by everyone | Notes text plus the original PDFs; a 1 MB PDF uses about 1.1 MB |
 | Gemini requests | Shared by all users | If it runs out, the app asks people to retry in a minute |
 | Exam-paper solves | 7 per person per day | Enforced by the Firestore rules |

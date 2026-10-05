@@ -47,6 +47,7 @@ Everything lives under one user, so a person's data is easy to find and easy to 
 | `users/{uid}` | Name, email, study field, join date |
 | `users/{uid}/documents/{id}` | One uploaded PDF: name, size, pages, status, category |
 | `users/{uid}/documents/{id}/blocks/{n}` | The PDF's text, about 150 chunks per block |
+| `users/{uid}/documents/{id}/files/{n}` | The original PDF, in pieces of about 900 KB |
 | `users/{uid}/conversations/{id}` | One chat: title and dates (see note below) |
 | `users/{uid}/conversations/{id}/messages/{id}` | One message: who said it, text, sources |
 | `users/{uid}/papers/{paperId}` | A generated exam paper, so it can be solved later |
@@ -71,8 +72,11 @@ The document ID is the person's Firebase Auth `uid`, so the rules can match it t
 | :--- | :--- |
 | `filename` | Original file name |
 | `file_size` | Size in bytes |
-| `page_count` | Pages that had text |
+| `page_count` | Pages in the PDF |
 | `chunk_count` | Number of text chunks |
+| `ocr_pages` | Pages that had to be read with OCR |
+| `has_original` | Whether the original PDF was saved |
+| `original_pieces` | How many pieces the original PDF is stored in |
 | `status` | `processing`, `ready` or `failed` |
 | `category` | Subject label, default `General` |
 | `created_at` | Upload time (ISO text) |
@@ -89,7 +93,7 @@ There is no server, so the rules in `firestore.rules` are the security.
 
 | Rule | Effect |
 | :--- | :--- |
-| Everything is under `users/{uid}` | Only the signed-in owner can read or write it |
+| Everything is under `users/{uid}` | Only the signed-in owner can read or write it, including documents, blocks and original files |
 | No other paths exist | Everything else is denied |
 | Usage counter | Can only go up by 1 per write, never past 7, only for today's date |
 
@@ -107,16 +111,23 @@ These rules were tested against the live project: owners can use their data, oth
 
 ## 5. Reading PDFs
 
-Done in the browser by `frontend/src/services/pdf.js`.
+Done in the browser by `frontend/src/services/pdf.js`. Every page goes through up to three steps and stops at the first one that works.
 
-| Step | What happens |
-| :--- | :--- |
-| 1 | pdf.js reads the text layer of each page |
-| 2 | A page with fewer than 30 characters is treated as scanned or handwritten |
-| 3 | That page is drawn to an image and sent to Gemini to be transcribed |
-| 4 | Text is cut into 1000-character chunks with 200 characters of overlap |
+| Step | Used for | Cost |
+| :--- | :--- | :--- |
+| 1. pdf.js text layer | Normal PDFs | Free, instant |
+| 2. Tesseract OCR | Scanned or photographed printed pages | Free, runs in your browser |
+| 3. Gemini vision | Handwriting, or pages Tesseract is unsure about | Uses the shared Gemini quota |
 
-The PDF file itself is not stored. Cloud Storage needs a paid plan, and only the text is needed.
+A page with fewer than 30 characters of text goes to step 2. If Tesseract is under 60% confident, Gemini double-checks it. If Gemini is unavailable, the Tesseract text is kept, so scanned PDFs still work.
+
+Then the text is cut into 1000-character chunks with 200 characters of overlap and saved.
+
+### Keeping the original PDF
+
+The original file is saved too, so it can be downloaded again from the document card. Firestore fields hold at most about 1 MiB, so the file is stored in pieces of 900 KB under `files/`.
+
+This is free, but it uses the shared 1 GiB Firestore allowance. Firebase Storage is the usual place for files, but it needs a paid plan.
 
 ---
 
@@ -171,7 +182,7 @@ Your email is your login, so it cannot be changed in Settings. Name and field ca
 | :--- | :--- |
 | Firestore reads | 50,000 per day |
 | Firestore writes | 20,000 per day |
-| Firestore storage | 1 GiB |
+| Firestore storage | 1 GiB, shared by all users, notes and original PDFs |
 | Hosting storage and transfer | 10 GB and 360 MB per day |
 | Gemini | A shared free quota; the app shows a friendly retry message |
 | PDF size | 10 MB per file |
@@ -197,8 +208,10 @@ Setup of Authentication, AI Logic, App Check and the custom domain is listed in 
 | Decision | Reason |
 | :--- | :--- |
 | No backend server | Firebase's free plan cannot run one |
+| Tesseract first, Gemini second for OCR | Tesseract is free and unlimited; Gemini quota is saved for handwriting |
 | Gemini only | A second provider's key would have to live in the browser |
-| Text stored, PDF not | Cloud Storage needs a paid plan |
+| Original PDFs stored in Firestore | Cloud Storage needs a paid plan; this is free but uses the shared 1 GiB |
 | Keyword search, not embeddings | Embeddings are not available through AI Logic, and keyword ranking is free |
 | Notes packed into blocks | Keeps reads far below the free daily limit |
+| Document list loaded once, never polled | Every read counts against the 50,000 per day |
 | Services return the old API shapes | The pages did not need rewriting |

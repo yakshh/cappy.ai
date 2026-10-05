@@ -13,7 +13,7 @@ const navItems = [
   { to: '/summary',      icon: FileText,        label: 'Summary'              },
   { to: '/quiz',         icon: Zap,             label: 'Quiz & Flashcards'    },
   { to: '/sample-paper', icon: FileSpreadsheet, label: 'Papers & Solutions'   },
-  { to: '/search',       icon: Search,          label: 'Semantic Search'      },
+  { to: '/search',       icon: Search,          label: 'Search'      },
 ]
 
 const bottomItems = [

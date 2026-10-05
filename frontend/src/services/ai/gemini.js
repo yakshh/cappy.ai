@@ -11,19 +11,22 @@ function modelFor({ json }) {
     generationConfig: {
       temperature: 0.75,
       maxOutputTokens: 8192,
+      thinkingConfig: { thinkingBudget: 0 }, // hidden "thinking" would eat the output budget and the free quota
       ...(json ? { responseMimeType: 'application/json' } : {}),
     },
   })
 }
 
+const RATE_LIMITED = /\b(429|503)\b|RESOURCE_EXHAUSTED|quota|rate limit|overloaded/i
+
 function aiError(err) {
   const msg = String(err?.message || err)
   console.warn('[AI]', msg)
-  if (/429|quota|rate/i.test(msg)) {
-    return apiError('The AI is busy right now (free quota reached). Please try again in a minute.', 429)
-  }
   if (/App Check/i.test(msg)) {
     return apiError('AI request was blocked by App Check. Check the App Check setup for this site.', 401)
+  }
+  if (RATE_LIMITED.test(msg)) {
+    return apiError('The AI is busy right now (free quota reached). Please try again in a minute.', 429)
   }
   if (/403|PERMISSION|not enabled|API key/i.test(msg)) {
     return apiError('AI is not enabled for this project. Enable Firebase AI Logic in the Firebase console.', 503)
@@ -31,14 +34,25 @@ function aiError(err) {
   return apiError('AI generation failed. Please try again.', 503)
 }
 
+// The free tier allows roughly 10 requests a minute, so rate-limit errors are retried after a pause.
+const RETRY_DELAYS_MS = [5000, 12000]
+const isRateLimited = (err) => RATE_LIMITED.test(String(err?.message || err))
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 async function run(model, parts) {
-  try {
-    const result = await model.generateContent(parts)
-    const text = result.response.text()
-    if (!text || !text.trim()) throw new Error('Empty response from Gemini.')
-    return text.trim()
-  } catch (err) {
-    throw aiError(err)
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const result = await model.generateContent(parts)
+      const text = result.response.text()
+      if (!text || !text.trim()) throw new Error('Empty response from Gemini.')
+      return text.trim()
+    } catch (err) {
+      if (attempt < RETRY_DELAYS_MS.length && isRateLimited(err)) {
+        await sleep(RETRY_DELAYS_MS[attempt])
+        continue
+      }
+      throw aiError(err)
+    }
   }
 }
 

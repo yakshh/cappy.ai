@@ -19,3 +19,12 @@ ui-debug.log
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Leftovers from the old Python backend (kept on disk, never committed)
+__pycache__/
+*.pyc
+*.pyo
+venv/
+*.db
+backend/uploads/
+backend/chroma_db/

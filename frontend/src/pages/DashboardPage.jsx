@@ -29,13 +29,10 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    // Fetched once: every Firestore read counts against the free daily quota, so no polling.
     fetchDocuments()
-    const documentInterval = setInterval(fetchDocuments, 5000)
     const clockInterval = setInterval(() => setNow(new Date()), 60000)
-    return () => {
-      clearInterval(documentInterval)
-      clearInterval(clockInterval)
-    }
+    return () => clearInterval(clockInterval)
   }, [])
 
   const handleUploadSuccess = (newDocs) => {
@@ -139,7 +136,7 @@ export default function DashboardPage() {
             { to: '/sample-paper', icon: FileSpreadsheet, label: 'Exam Papers', desc: '70-Mark University Paper' },
             { to: '/quiz',         icon: Zap,             label: 'Quiz & Flashcards', desc: 'MCQs & 3D Flip Cards' },
             { to: '/summary',      icon: BookOpen,        label: 'Summarize Notes', desc: 'AI Synthesis & Markdown' },
-            { to: '/search',       icon: Search,          label: 'Deep Vector Search', desc: 'Semantic Search by Meaning' },
+            { to: '/search',       icon: Search,          label: 'Deep Search', desc: 'Find any passage in your notes' },
           ].map(({ to, icon: Icon, label, desc }) => (
             <Link key={label} to={to} style={{ textDecoration: 'none' }}>
               <div className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}>

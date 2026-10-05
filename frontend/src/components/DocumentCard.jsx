@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileText, Trash2, Clock, CheckCircle, XCircle, Loader2, Folder, HardDrive, Layers, Plus } from 'lucide-react'
+import { FileText, Trash2, Clock, CheckCircle, XCircle, Loader2, Folder, HardDrive, Layers, Download, ScanText } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
 import { documentService } from '../services'
@@ -41,6 +41,14 @@ export default function DocumentCard({ doc, existingCategories = [], onDelete, o
       onDelete?.(doc.id)
     } catch {
       toast.error('Failed to delete document.')
+    }
+  }
+
+  const handleDownload = async () => {
+    try {
+      await documentService.download(doc.id, doc.filename)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Download failed.')
     }
   }
 
@@ -114,7 +122,7 @@ export default function DocumentCard({ doc, existingCategories = [], onDelete, o
         </div>
 
         {/* Title */}
-        <div style={{ flex: 1, minWidth: 0, paddingRight: 24 }}>
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 48 }}>
           <h3
             style={{
               fontSize: 13.5,
@@ -128,6 +136,23 @@ export default function DocumentCard({ doc, existingCategories = [], onDelete, o
             {doc.filename}
           </h3>
         </div>
+
+        {/* Download original */}
+        {doc.has_original && (
+          <button
+            onClick={handleDownload}
+            id={`download-doc-${doc.id}`}
+            style={{
+              position: 'absolute', top: 12, right: 36,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text3)', padding: 4, borderRadius: 6,
+              transition: 'color 0.15s',
+            }}
+            title="Download original PDF"
+          >
+            <Download size={14} />
+          </button>
+        )}
 
         {/* Delete Button */}
         <button
@@ -149,6 +174,12 @@ export default function DocumentCard({ doc, existingCategories = [], onDelete, o
       {/* Middle Row: Status Badge & Category Selector */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
         <StatusBadge status={doc.status} />
+        {doc.ocr_pages > 0 && (
+          <span className="tag tag-neutral" style={{ fontSize: 11, padding: '2px 7px' }} title="Pages read with OCR">
+            <ScanText size={11} style={{ color: 'var(--accent)' }} />
+            <span>OCR {doc.ocr_pages}</span>
+          </span>
+        )}
 
         {editingCategory ? (
           isCreatingNew ? (
