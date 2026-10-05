@@ -1,16 +1,13 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X } from 'lucide-react'
-import api from '../services/api'
 import { documentService } from '../services'
 import toast from 'react-hot-toast'
 
-const CHUNK_SIZE = 3 * 1024 * 1024 // 3 MB per chunk — always under Vercel's 4.5 MB limit
-
 /**
- * FileUpload — drag-and-drop PDF uploader using chunked upload.
- * Splits each PDF into 3MB pieces in the browser and sends them
- * one by one to the Python backend, bypassing Vercel's 4.5MB body limit.
+ * FileUpload - drag-and-drop PDF uploader.
+ * Each PDF is read in the browser (pdf.js, with Gemini vision for scanned pages)
+ * and its text is saved to Firestore; the PDF file itself is never uploaded.
  */
 export default function FileUpload({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false)
@@ -43,47 +40,10 @@ export default function FileUpload({ onUploadSuccess }) {
   })
 
   const uploadFile = async (file, fileIndex, totalFiles) => {
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-    // Use a random upload ID to group chunks
-    const uploadId = crypto.randomUUID()
-    // Encode filename to handle special chars safely in HTTP headers
-    const encodedName = encodeURIComponent(file.name)
-
-    let result = null
-
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE
-      const end = Math.min(start + CHUNK_SIZE, file.size)
-      const chunkBlob = file.slice(start, end)
-
-      const formData = new FormData()
-      formData.append('file', chunkBlob, `chunk_${i}`)
-
-      const response = await api.post('/documents/upload-chunk', formData, {
-        headers: {
-          'upload-id': uploadId,
-          'chunk-index': i,
-          'total-chunks': totalChunks,
-          'original-filename': encodedName,
-          'Content-Type': 'multipart/form-data',
-        },
-        // Track upload progress for this individual chunk
-        onUploadProgress: (evt) => {
-          const chunksDone = i
-          const chunkProgress = evt.total ? evt.loaded / evt.total : 0
-          const fileProgress = (chunksDone + chunkProgress) / totalChunks
-          const overall = ((fileIndex + fileProgress) / totalFiles) * 100
-          setProgress(Math.round(overall))
-        },
-      })
-
-      if (response.data.done) {
-        result = response.data.document
-        setProgress(Math.round(((fileIndex + 1) / totalFiles) * 100))
-      }
-    }
-
-    return result
+    const { data } = await documentService.upload(file, (fileProgress) => {
+      setProgress(Math.round(((fileIndex + fileProgress) / totalFiles) * 100))
+    })
+    return data
   }
 
   const handleUpload = async () => {

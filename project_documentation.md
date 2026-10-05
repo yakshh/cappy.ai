@@ -1,674 +1,204 @@
-# cappy.ai -- Project Documentation
+# cappy.ai - Project Documentation
 
-> Study Intelligence Platform
-
----
-
-## 1. Project Overview
-
-cappy.ai is a full-stack AI-powered study assistant that enables students to upload their course PDFs, ask questions grounded in those documents, generate summaries, quizzes, flashcards, university-format exam papers, and step-by-step model solutions. The platform is built with a React frontend and a Python FastAPI backend, deployed on Vercel with Neon PostgreSQL as the persistent database.
-
-### Live URL
-
-```
-https://cappy-ai-nine.vercel.app
-```
+A study assistant that runs entirely on Firebase's free (Spark) plan.
 
 ---
 
-## 2. Architecture
+## 1. Overview
+
+Students upload PDF notes and then summarise them, take quizzes, search them, and generate or solve exam papers. All answers come from the student's own notes.
+
+The app is a React website. It talks directly to three Firebase services, so there is no server to run or pay for.
+
+| Need | Firebase service |
+| :--- | :--- |
+| Show the website | Hosting |
+| Log people in | Authentication |
+| Store notes and history | Firestore |
+| Write answers and quizzes | AI Logic (Gemini) |
+
+---
+
+## 2. How a request flows
 
 ```mermaid
-graph TB
-    subgraph "Frontend (Vite + React)"
-        UI[React SPA]
-        API_CLIENT[Axios API Client]
-    end
-
-    subgraph "Vercel Platform"
-        STATIC[Static Build - frontend/dist]
-        SF[Serverless Function - api/index.py]
-    end
-
-    subgraph "Backend (FastAPI)"
-        APP[app.py - FastAPI Entry]
-        AUTH[auth.py - JWT + bcrypt]
-        ROUTES[Route Handlers]
-        RAG[RAG Pipeline]
-        SERVICES[PDF + Chunking Services]
-    end
-
-    subgraph "External Services"
-        GROQ[Groq Cloud API - llama-3.3-70b]
-        GEMINI[Google Gemini API - gemini-flash]
-        NEON[Neon PostgreSQL]
-        CHROMA[ChromaDB - Ephemeral on Vercel]
-    end
-
-    UI --> API_CLIENT
-    API_CLIENT --> SF
-    SF --> APP
-    APP --> AUTH
-    APP --> ROUTES
-    ROUTES --> RAG
-    ROUTES --> SERVICES
-    RAG --> GROQ
-    RAG --> GEMINI
-    ROUTES --> NEON
-    RAG --> CHROMA
+graph LR
+    B[Browser] --> A[Firebase Auth]
+    B --> F[Firestore]
+    B --> G[Gemini via AI Logic]
+    H[Firebase Hosting] --> B
 ```
 
-### Request Flow
+Example: generating a summary.
 
-1. The user interacts with the React frontend served as static files from Vercel.
-2. All API calls go to `/api/*` which Vercel routes to the Python serverless function at `api/index.py`.
-3. `api/index.py` imports `app` from `backend/app.py`, which is the FastAPI application.
-4. FastAPI handles routing, authentication, database access, and AI generation.
-5. Responses are returned to the frontend as JSON.
-
----
-
-## 3. Technology Stack
-
-### Frontend
-
-| Technology | Purpose |
-|---|---|
-| React 18 | Component-based UI framework |
-| Vite 5 | Build tool and dev server |
-| React Router DOM 6 | Client-side routing |
-| Axios | HTTP client with JWT interceptors |
-| Lucide React | Icon library |
-| React Hot Toast | Toast notification system |
-| React Markdown + remark-gfm | Markdown rendering for AI outputs |
-| html2pdf.js | Client-side PDF generation and download |
-| Framer Motion | Page transition animations |
-| Vanilla CSS | Custom design system with CSS variables |
-
-### Backend
-
-| Technology | Purpose |
-|---|---|
-| FastAPI | Async Python web framework |
-| SQLAlchemy 2.0 | ORM for PostgreSQL and SQLite |
-| psycopg 3 | PostgreSQL adapter (Neon DB) |
-| pdfplumber | PDF text extraction |
-| Pillow | Image processing for OCR fallback |
-| python-jose | JWT token creation and verification |
-| bcrypt | Password hashing |
-| ChromaDB | Vector store for embeddings (local only) |
-| NumPy | Lightweight fallback embedding vectors |
-| google-generativeai | Gemini API client (secondary AI provider) |
-| groq | Groq API client (primary AI provider) |
-
-### Infrastructure
-
-| Service | Purpose |
-|---|---|
-| Vercel | Hosting (frontend static + backend serverless) |
-| Neon PostgreSQL | Persistent relational database |
-| Groq Cloud | Primary LLM inference (llama-3.3-70b-versatile) |
-| Google Gemini | Secondary LLM inference (gemini-flash-latest) |
+1. The browser loads the note blocks for the chosen documents from Firestore (one read per block).
+2. It picks the most useful chunks (by topic if one was given, otherwise a spread across the notes).
+3. It sends those chunks and the instructions to Gemini through AI Logic.
+4. The result is shown on screen.
 
 ---
 
-## 4. Directory Structure
+## 3. What is stored in Firestore
 
-```
-cappy.ai-git/
-├── api/
-│   └── index.py                  # Vercel serverless entry point
-├── backend/
-│   ├── app.py                    # FastAPI application factory
-│   ├── auth.py                   # JWT + bcrypt authentication utilities
-│   ├── config.py                 # Centralized settings from env vars
-│   ├── database.py               # SQLAlchemy engine, session, init_db
-│   ├── requirements.txt          # Python dependencies
-│   ├── .env                      # Environment variables (not in git)
-│   ├── .env.example              # Environment template
-│   ├── models/
-│   │   ├── __init__.py           # Re-exports all models
-│   │   ├── user.py               # User model
-│   │   ├── document.py           # Document model (uploaded PDFs)
-│   │   ├── document_chunk.py     # DocumentChunk model (persistent search)
-│   │   ├── conversation.py       # Conversation + Message models
-│   │   ├── generated_paper.py    # GeneratedPaper model (paper text cache)
-│   │   └── paper_solve_usage.py  # PaperSolveUsage model (daily rate limit)
-│   ├── routes/
-│   │   ├── auth.py               # POST /api/auth/register, /api/auth/login
-│   │   ├── documents.py          # PDF upload, list, delete, category
-│   │   ├── chat.py               # RAG chat with conversation history
-│   │   ├── summary.py            # Document summarization
-│   │   ├── quiz.py               # MCQ quiz generation
-│   │   ├── flashcards.py         # Flashcard generation
-│   │   ├── sample_paper.py       # Exam paper generation + solving
-│   │   ├── search.py             # Deep semantic + full-text search
-│   │   └── users.py              # User profile CRUD
-│   ├── rag/
-│   │   ├── embeddings.py         # Embedding generation (local + fallback)
-│   │   ├── generator.py          # Multi-provider AI text generation
-│   │   └── vector_store.py       # ChromaDB + in-memory vector search
-│   └── services/
-│       ├── pdf_service.py        # PDF text extraction with OCR fallback
-│       └── chunking_service.py   # Sliding window text chunking
-├── frontend/
-│   ├── package.json              # Node dependencies
-│   ├── vite.config.js            # Vite build configuration
-│   └── src/
-│       ├── main.jsx              # React DOM render entry
-│       ├── App.jsx               # Router + layout + providers
-│       ├── index.css             # Complete design system
-│       ├── context/
-│       │   ├── AuthContext.jsx    # Authentication state provider
-│       │   └── ThemeContext.jsx   # Dark/light mode + color themes
-│       ├── services/
-│       │   ├── api.js            # Axios instance with JWT interceptors
-│       │   └── index.js          # Service layer (all API calls)
-│       ├── components/
-│       │   ├── Navbar.jsx        # Top navigation bar
-│       │   ├── Sidebar.jsx       # Chat sidebar with conversations
-│       │   ├── FileUpload.jsx    # Chunked PDF upload component
-│       │   ├── DocumentCard.jsx  # Document card with actions
-│       │   ├── CategoryDocumentSelector.jsx  # Multi-select doc picker
-│       │   ├── MarkdownRenderer.jsx          # Markdown display
-│       │   ├── SourceCitationCard.jsx        # RAG source citations
-│       │   ├── LoadingSpinner.jsx            # Loading indicator
-│       │   ├── TypingIndicator.jsx           # Chat typing dots
-│       │   └── ProtectedRoute.jsx            # Auth guard wrapper
-│       └── pages/
-│           ├── LoginPage.jsx       # Login form
-│           ├── RegisterPage.jsx    # Registration form
-│           ├── DashboardPage.jsx   # Overview: docs, stats, upload
-│           ├── SummaryPage.jsx     # Summary generation UI
-│           ├── QuizPage.jsx        # Quiz + flashcard UI
-│           ├── SamplePaperPage.jsx # Exam paper generate + solve UI
-│           ├── SearchPage.jsx      # Deep search UI
-│           ├── ChatPage.jsx        # RAG chat interface
-│           └── SettingsPage.jsx    # Profile, security, theme, about
-└── vercel.json                   # Vercel build + route configuration
-```
+Everything lives under one user, so a person's data is easy to find and easy to protect.
+
+| Path | What it holds |
+| :--- | :--- |
+| `users/{uid}` | Name, email, study field, join date |
+| `users/{uid}/documents/{id}` | One uploaded PDF: name, size, pages, status, category |
+| `users/{uid}/documents/{id}/blocks/{n}` | The PDF's text, about 150 chunks per block |
+| `users/{uid}/conversations/{id}` | One chat: title and dates (see note below) |
+| `users/{uid}/conversations/{id}/messages/{id}` | One message: who said it, text, sources |
+| `users/{uid}/papers/{paperId}` | A generated exam paper, so it can be solved later |
+| `users/{uid}/usage/{yyyy-mm-dd}` | How many papers were solved today |
+
+> Note: the chat page exists in the code and its service is ported, but it has no route or menu link yet, so no chat data is created today.
+
+### User fields
+
+| Field | Meaning |
+| :--- | :--- |
+| `full_name` | Display name |
+| `email` | Login email, copied here so the record is easy to recognise in the console |
+| `study_field` | Field or stream of study, for example Computer |
+| `created_at` | Join time (ISO text) |
+
+The document ID is the person's Firebase Auth `uid`, so the rules can match it to the signed-in user. Look the person up by `email` instead.
+
+### Document fields
+
+| Field | Meaning |
+| :--- | :--- |
+| `filename` | Original file name |
+| `file_size` | Size in bytes |
+| `page_count` | Pages that had text |
+| `chunk_count` | Number of text chunks |
+| `status` | `processing`, `ready` or `failed` |
+| `category` | Subject label, default `General` |
+| `created_at` | Upload time (ISO text) |
+
+### Why blocks?
+
+Firestore charges one read per document. If every chunk were its own document, one question over a 100-page PDF would cost hundreds of reads. Packing about 150 chunks into each block makes the same question cost two or three.
 
 ---
 
-## 5. Database Schema
+## 4. Security
 
-All tables are hosted on **Neon PostgreSQL** in production and SQLite locally.
+There is no server, so the rules in `firestore.rules` are the security.
 
-### users
+| Rule | Effect |
+| :--- | :--- |
+| Everything is under `users/{uid}` | Only the signed-in owner can read or write it |
+| No other paths exist | Everything else is denied |
+| Usage counter | Can only go up by 1 per write, never past 7, only for today's date |
 
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| full_name | String(120) | User display name |
-| email | String(255) | Unique login email |
-| hashed_password | String(255) | bcrypt-hashed password |
-| is_active | Boolean | Account active flag |
-| avatar_url | String(500) | Optional avatar URL |
-| created_at | DateTime | Account creation timestamp |
-| updated_at | DateTime | Last update timestamp |
+Other protections:
 
-### documents
+| Protection | How |
+| :--- | :--- |
+| Passwords | Handled and hashed by Firebase Authentication |
+| Gemini key | Never in the website; Google keeps it behind AI Logic |
+| Abuse of the shared Gemini quota | App Check (reCAPTCHA v3), optional but recommended |
 
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| user_id | Integer (FK) | Owner reference to users.id |
-| filename | String(255) | Original uploaded filename |
-| stored_filename | String(255) | UUID-based filename on disk |
-| file_path | String(500) | Full path to stored file |
-| file_size | BigInteger | File size in bytes |
-| page_count | Integer | Number of PDF pages |
-| chunk_count | Integer | Number of text chunks created |
-| status | String(50) | processing, ready, or failed |
-| category | String(100) | User-defined category tag |
-| chroma_collection_id | String(255) | ChromaDB collection reference |
-| created_at | DateTime | Upload timestamp |
-| updated_at | DateTime | Last update timestamp |
-
-### document_chunks
-
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| document_id | Integer (FK) | Reference to documents.id |
-| user_id | Integer (FK) | Reference to users.id |
-| document_name | String(255) | Source document filename |
-| page | Integer | Source page number |
-| chunk_index | Integer | Sequential chunk index |
-| text | Text | The chunk text content |
-| created_at | DateTime | Creation timestamp |
-
-### conversations
-
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| user_id | Integer (FK) | Owner reference to users.id |
-| title | String(255) | Conversation title (auto-generated) |
-| created_at | DateTime | Creation timestamp |
-| updated_at | DateTime | Last message timestamp |
-
-### messages
-
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| conversation_id | Integer (FK) | Reference to conversations.id |
-| role | String(20) | "user" or "assistant" |
-| content | Text | Message text |
-| sources | Text | JSON string of source citations |
-| created_at | DateTime | Message timestamp |
-
-### generated_papers
-
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| paper_id | String(64) | Short UUID for paper identification |
-| user_id | Integer (FK) | Reference to users.id |
-| content | Text | Full paper markdown text |
-| created_at | DateTime | Generation timestamp |
-
-### paper_solve_usage
-
-| Column | Type | Description |
-|---|---|---|
-| id | Integer (PK) | Auto-increment primary key |
-| user_id | Integer (FK) | Reference to users.id |
-| solve_date | Date | Calendar date of solves |
-| solve_count | Integer | Number of solves on that date |
-| *Constraint* | UNIQUE | (user_id, solve_date) |
+These rules were tested against the live project: owners can use their data, other users are refused, the 8th paper solve is refused, and the counter cannot be reset.
 
 ---
 
-## 6. API Reference
+## 5. Reading PDFs
 
-All endpoints are prefixed with `/api`. Authentication is via JWT Bearer token in the `Authorization` header.
+Done in the browser by `frontend/src/services/pdf.js`.
 
-### Authentication
+| Step | What happens |
+| :--- | :--- |
+| 1 | pdf.js reads the text layer of each page |
+| 2 | A page with fewer than 30 characters is treated as scanned or handwritten |
+| 3 | That page is drawn to an image and sent to Gemini to be transcribed |
+| 4 | Text is cut into 1000-character chunks with 200 characters of overlap |
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/register` | No | Create a new user account |
-| POST | `/api/auth/login` | No | Authenticate and receive JWT token |
-
-**Register request body:**
-```json
-{ "full_name": "Yaksh", "email": "user@example.com", "password": "securepass" }
-```
-
-**Login response:**
-```json
-{ "access_token": "eyJ...", "token_type": "bearer" }
-```
+The PDF file itself is not stored. Cloud Storage needs a paid plan, and only the text is needed.
 
 ---
 
-### Documents
+## 6. Finding the right notes
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/documents/upload-chunk` | Yes | Upload one chunk of a PDF (chunked upload) |
-| POST | `/api/documents/upload` | Yes | Legacy single-file upload |
-| GET | `/api/documents/` | Yes | List all user documents |
-| GET | `/api/documents/{id}` | Yes | Get single document details |
-| DELETE | `/api/documents/{id}` | Yes | Delete a document |
-| PATCH | `/api/documents/{id}/category` | Yes | Update document category |
+Done by `frontend/src/services/retrieval.js`.
 
-**Chunked upload headers:**
-```
-upload_id: <unique-id>
-chunk_index: 0
-total_chunks: 3
-original_filename: Unit-7.pdf
-```
+| Situation | Method |
+| :--- | :--- |
+| Search | BM25 keyword ranking over the chosen documents |
+| Summary, quiz, paper with a topic | Best matches for the topic, lightly shuffled for variety |
+| Summary, quiz, paper without a topic | A random spread across the notes |
+
+The relevance score shown in Search is the share of your words found in the chunk, with a bonus for an exact phrase match.
+
+Loaded blocks are cached for the session, so asking a second question costs no extra reads.
 
 ---
 
-### Chat (RAG)
+## 7. AI
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/chat/` | Yes | Send a question and receive an AI answer |
-| GET | `/api/chat/conversations` | Yes | List all conversations |
-| GET | `/api/chat/conversations/{id}/messages` | Yes | Get messages in a conversation |
-| DELETE | `/api/chat/conversations/{id}` | Yes | Delete a conversation |
+Done by `frontend/src/services/ai/`.
 
-**Chat request body:**
-```json
-{
-  "question": "What is MQTT protocol?",
-  "conversation_id": null,
-  "document_ids": [16, 18]
-}
-```
+| File | Job |
+| :--- | :--- |
+| `gemini.js` | Calls Gemini, reads image text, repairs broken JSON replies |
+| `prompts.js` | The prompts for summaries, quizzes, flashcards, papers and chat answers |
 
-**Chat response:**
-```json
-{
-  "answer": "MQTT (Message Queuing Telemetry Transport) is...",
-  "sources": [{"text": "...", "document_name": "Unit-7.pdf", "page": 5, "score": 0.87}],
-  "conversation_id": 12,
-  "message_id": 45
-}
-```
+The model name is one constant, `GEMINI_MODEL`, in `gemini.js`.
 
 ---
 
-### Summaries
+## 8. Pages
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/summary/` | Yes | Generate a summary from selected documents |
+| Route | Page |
+| :--- | :--- |
+| `/login`, `/register` | Sign in and create an account |
+| `/dashboard` | Your documents and upload |
+| `/summary` | Summaries |
+| `/quiz` | Quizzes and flashcards |
+| `/sample-paper` | Generate and solve exam papers |
+| `/search` | Search all notes |
+| `/settings` | Profile, password, theme |
 
-**Request body:**
-```json
-{
-  "document_ids": [16, 18],
-  "mode": "detailed",
-  "topic": "IoT Security"
-}
-```
-
-Modes: `short`, `detailed`, `bullets`
+Your email is your login, so it cannot be changed in Settings. Name and field can.
 
 ---
 
-### Quiz and Flashcards
+## 9. Free plan limits
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/quiz/` | Yes | Generate MCQ or flashcard quiz |
-| POST | `/api/flashcards/` | Yes | Generate flashcards |
-
-**Quiz request body:**
-```json
-{
-  "document_ids": [16, 18],
-  "quiz_type": "mcq",
-  "num_questions": 10,
-  "topic": "IoT Protocols"
-}
-```
-
-Quiz types: `mcq`, `flashcards`
+| Limit | Value |
+| :--- | :--- |
+| Firestore reads | 50,000 per day |
+| Firestore writes | 20,000 per day |
+| Firestore storage | 1 GiB |
+| Hosting storage and transfer | 10 GB and 360 MB per day |
+| Gemini | A shared free quota; the app shows a friendly retry message |
+| PDF size | 10 MB per file |
+| Paper solves | 7 per person per day |
 
 ---
 
-### Sample Paper (Exam Paper Generation)
+## 10. Deploying
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/sample-paper/` | Yes | Generate a university-format exam paper |
-| POST | `/api/sample-paper/solve-upload` | Yes | Upload a PDF and generate model solutions |
+| Task | Command |
+| :--- | :--- |
+| Build the site | `cd frontend && npm run build` |
+| Publish site and rules | `firebase deploy` |
+| Publish only rules | `firebase deploy --only firestore` |
+| Publish only the site | `firebase deploy --only hosting` |
 
-**Generate request body:**
-```json
-{
-  "document_ids": [16, 18],
-  "university_name": "Gujarat Technological University",
-  "subject_code": "3160716",
-  "subject_name": "IOT and Applications",
-  "exam_term": "SUMMER 2024",
-  "total_marks": 70
-}
-```
-
-**Solve upload:** Multipart form with `file` (PDF), `document_ids`, `subject_name`.
-
-Rate limit: 7 paper solves per user per day.
+Setup of Authentication, AI Logic, App Check and the custom domain is listed in the README.
 
 ---
 
-### Deep Search
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/search/` | Yes | Semantic and full-text search |
-
-**Request body:**
-```json
-{
-  "query": "MQTT security vulnerabilities",
-  "document_ids": [16, 18],
-  "n_results": 15
-}
-```
-
-Search first attempts vector similarity via ChromaDB, then falls back to PostgreSQL full-text keyword matching against the `document_chunks` table.
-
----
-
-### Users
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| GET | `/api/users/me` | Yes | Get current user profile |
-| PATCH | `/api/users/me` | Yes | Update profile (name, email) |
-| POST | `/api/users/me/change-password` | Yes | Change password |
-
----
-
-### Health Check
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| GET | `/api/health` | No | Returns `{"status": "ok"}` |
-
----
-
-## 7. AI Provider Chain
-
-The backend uses a cascading multi-provider strategy defined in [generator.py](file:///d:/Study/extra/codes/cappy.ai-git/backend/rag/generator.py):
-
-| Priority | Provider | Model | Speed | Use Case |
-|---|---|---|---|---|
-| 1 (Primary) | Groq Cloud | llama-3.3-70b-versatile | ~500 tokens/sec | All generation tasks |
-| 2 (Fallback) | Google Gemini | gemini-flash-latest | ~100 tokens/sec | If Groq fails |
-| 3 (Local) | Ollama | llama3.2:3b | Variable | Offline development |
-
-If Provider 1 fails (rate limit, network error), it automatically falls back to Provider 2, then Provider 3. All three failures raise a `RuntimeError`.
-
-### Generation Functions
-
-| Function | Output | Purpose |
-|---|---|---|
-| `generate_answer(question, chunks)` | Markdown string | RAG chat answers with citations |
-| `generate_summary(text, mode, topic)` | Markdown string | Document summarization |
-| `generate_quiz(text, quiz_type, num)` | JSON string | MCQ quiz questions |
-| `generate_flashcards(text, num)` | JSON string | Study flashcards |
-| `generate_sample_paper(text, ...)` | JSON string | University exam paper |
-| `solve_question_paper(text, context, subject)` | JSON string | Step-by-step model solutions |
-
----
-
-## 8. RAG Pipeline
-
-### Document Ingestion
-
-1. **Upload**: User uploads a PDF via the chunked upload endpoint. Chunks are reassembled on the server.
-2. **Text Extraction**: `pdf_service.py` uses `pdfplumber` to extract text from each page. If a page has fewer than 15 characters, it attempts OCR via `pytesseract` (if available).
-3. **Chunking**: `chunking_service.py` splits page text into overlapping chunks using a sliding window (default: 1000 characters with 200 character overlap).
-4. **PostgreSQL Storage**: All chunks are saved to the `document_chunks` table in Neon PostgreSQL for permanent full-text search.
-5. **Vector Embedding**: Chunks are embedded using `SentenceTransformer('all-MiniLM-L6-v2')` locally, or a lightweight hash-based fallback on Vercel, then stored in ChromaDB.
-
-### Query Flow
-
-1. User submits a question or search query.
-2. The query is embedded using the same embedding model.
-3. ChromaDB performs cosine similarity search to find the top-K most relevant chunks.
-4. If ChromaDB is empty (Vercel ephemeral storage), the system falls back to PostgreSQL `ILIKE` keyword matching on the `document_chunks` table.
-5. Retrieved chunks are formatted into a context block and sent to the LLM along with the user's question.
-6. The LLM generates a grounded answer citing specific chunks.
-
----
-
-## 9. Embedding Strategy
-
-Defined in [embeddings.py](file:///d:/Study/extra/codes/cappy.ai-git/backend/rag/embeddings.py):
-
-| Environment | Method | Dimensions |
-|---|---|---|
-| Local Development | SentenceTransformer `all-MiniLM-L6-v2` | 384 |
-| Vercel Serverless | Lightweight MD5 hash-based vector | 384 |
-
-The hash-based fallback generates deterministic 384-dimensional normalized vectors by hashing each word with MD5 and mapping to vector indices. This enables basic vector similarity without requiring heavy ML model loading in serverless environments.
-
----
-
-## 10. Authentication System
-
-- **Password Hashing**: bcrypt with automatic salt generation.
-- **Token Format**: JWT (JSON Web Token) signed with HS256.
-- **Token Lifetime**: 10,080 minutes (7 days) by default.
-- **Token Transport**: `Authorization: Bearer <token>` header on every API request.
-- **Auto-Logout**: The frontend Axios interceptor detects 401 responses and redirects to `/login`.
-
----
-
-## 11. Frontend Pages
-
-| Route | Page Component | Description |
-|---|---|---|
-| `/login` | LoginPage | Email and password login form |
-| `/register` | RegisterPage | New account registration form |
-| `/dashboard` | DashboardPage | Document overview, upload, stats |
-| `/summary` | SummaryPage | Generate summaries (short, detailed, bullets) |
-| `/quiz` | QuizPage | Generate MCQ quizzes and flashcards |
-| `/sample-paper` | SamplePaperPage | Generate and solve exam papers |
-| `/search` | SearchPage | Deep semantic search across documents |
-| `/settings` | SettingsPage | Profile, security, appearance, about |
-
-### Design System
-
-The UI uses a custom CSS design system defined in [index.css](file:///d:/Study/extra/codes/cappy.ai-git/frontend/src/index.css) with:
-
-- CSS custom properties for theming (`--bg`, `--surface`, `--text`, `--accent`, etc.)
-- Dark mode and light mode support
-- Multiple color palettes: Ember (red), Ocean (blue), Sage (green), Amethyst (purple), Amber (gold), Graphite (gray)
-- Reusable utility classes: `.card`, `.btn`, `.btn-primary`, `.btn-ghost`, `.input`, `.tag`, `.skeleton`
-- Typography via Google Fonts: Inter (body) and Space Grotesk (display headings)
-
-### Theme System
-
-Managed by [ThemeContext.jsx](file:///d:/Study/extra/codes/cappy.ai-git/frontend/src/context/ThemeContext.jsx):
-
-- Persisted to `localStorage` keys `theme-mode` and `theme-color`.
-- Applied by toggling `data-theme` and `data-color` attributes on the document root.
-- Instant preview switching in the Settings page.
-
----
-
-## 12. Deployment Configuration
-
-### vercel.json
-
-```json
-{
-  "version": 2,
-  "builds": [
-    { "src": "api/index.py", "use": "@vercel/python" },
-    { "src": "frontend/package.json", "use": "@vercel/static-build" }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "api/index.py" },
-    { "src": "/assets/(.*)", "dest": "frontend/assets/$1" },
-    { "src": "/favicon.svg", "dest": "frontend/favicon.svg" },
-    { "src": "/(.*)", "dest": "frontend/index.html" }
-  ]
-}
-```
-
-- All `/api/*` requests are routed to the Python serverless function.
-- All other requests serve the React SPA's `index.html` for client-side routing.
-- Static assets (JS bundles, CSS) are served from `frontend/assets/`.
-
-### Vercel Environment Variables
-
-The following must be set in Vercel's project settings under Environment Variables:
-
-| Variable | Required | Description |
-|---|---|---|
-| `GROQ_API_KEY` | Yes | Groq Cloud API key for primary LLM inference |
-| `GEMINI_API_KEY` | Optional | Google Gemini API key (fallback provider) |
-| `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
-| `SECRET_KEY` | Yes | JWT signing secret |
-
-### Vercel-Specific Constraints
-
-1. **Read-only filesystem**: All file writes must go to `/tmp`. The `config.py` detects the `VERCEL` environment variable and redirects `UPLOAD_DIR` and `CHROMA_PERSIST_DIR` to `/tmp`.
-2. **Ephemeral `/tmp`**: Files in `/tmp` are lost when a serverless function container is recycled. This is why all persistent data (document chunks, generated papers, user data) is stored in Neon PostgreSQL.
-3. **No background threads**: Vercel kills background threads after the HTTP response is sent. Document processing runs synchronously within the upload request handler.
-4. **10-second timeout**: Serverless functions on the free tier have a 10-second execution limit. AI generation calls to Groq typically complete in under 3 seconds.
-
----
-
-## 13. Environment Setup (Local Development)
-
-### Prerequisites
-
-- Python 3.11 or higher
-- Node.js 18 or higher
-- A Groq API key (free at https://console.groq.com)
-
-### Backend Setup
-
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # macOS/Linux
-pip install -r requirements.txt
-cp .env.example .env           # Edit .env with your API keys
-python app.py                  # Starts uvicorn on http://localhost:8000
-```
-
-### Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev                    # Starts Vite dev server on http://localhost:5173
-```
-
-### Local Database
-
-By default, the backend uses SQLite (`cappy.db`) for local development. To use PostgreSQL locally, set `DATABASE_URL` in `.env` to a PostgreSQL connection string.
-
----
-
-## 14. Rate Limiting
-
-| Feature | Limit | Scope | Storage |
-|---|---|---|---|
-| Paper Solving | 7 per day | Per user | PostgreSQL `paper_solve_usage` table |
-| All other features | Unlimited | -- | -- |
-
-The daily limit resets at midnight UTC. When the limit is reached, the API returns HTTP 429 with the message: "Daily limit reached! You can solve up to 7 question papers per day."
-
----
-
-## 15. Security Considerations
-
-- Passwords are hashed with bcrypt before storage. Plain-text passwords are never persisted.
-- JWT tokens are signed with HS256 using the `SECRET_KEY` environment variable.
-- All API endpoints (except `/auth/register`, `/auth/login`, `/health`) require a valid JWT.
-- Document access is scoped to the authenticated user via `user_id` filtering on every query.
-- CORS is configured to accept all origins (`allow_origins=["*"]`). For production hardening, this should be restricted to the deployment domain.
-- API keys are stored in Vercel environment variables and never exposed to the frontend.
-
----
-
-## 16. Key Design Decisions
-
-1. **Synchronous document processing on Vercel**: Background threads are killed by Vercel after the HTTP response. All PDF extraction, chunking, and database writes happen synchronously during the upload request to guarantee data persistence.
-
-2. **Dual-layer search (ChromaDB + PostgreSQL)**: ChromaDB provides fast vector similarity search locally but its data is ephemeral on Vercel. The `document_chunks` PostgreSQL table provides a permanent full-text search fallback that works reliably across all serverless function invocations.
-
-3. **Generated paper caching in PostgreSQL**: When a sample paper is generated, its full markdown text is saved to the `generated_papers` table. When the user downloads the paper as PDF and re-uploads it to "Solve", the system retrieves the text by paper ID from the database instead of requiring OCR or Gemini Vision API.
-
-4. **Multi-provider AI fallback**: The generator cascades through Groq, Gemini, and Ollama. This ensures the app works in all environments: production (Groq), development with API keys (Gemini), and fully offline (Ollama).
-
-5. **Lightweight hash embeddings for Vercel**: Loading a 90MB SentenceTransformer model is impractical in a serverless function. The hash-based embedding fallback provides deterministic 384D vectors using only NumPy and hashlib, enabling basic vector operations without ML dependencies.
-
-6. **Mark-proportional answer length**: The `solve_question_paper` prompt enforces strict word count ranges based on marks (3 marks: 50-90 words, 4 marks: 130-190 words, 7 marks: 350-550 words) to produce exam-appropriate model answers.
+## 11. Design decisions
+
+| Decision | Reason |
+| :--- | :--- |
+| No backend server | Firebase's free plan cannot run one |
+| Gemini only | A second provider's key would have to live in the browser |
+| Text stored, PDF not | Cloud Storage needs a paid plan |
+| Keyword search, not embeddings | Embeddings are not available through AI Logic, and keyword ranking is free |
+| Notes packed into blocks | Keeps reads far below the free daily limit |
+| Services return the old API shapes | The pages did not need rewriting |

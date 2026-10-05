@@ -1,8 +1,9 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { LayoutDashboard, BookText, Zap, ScrollText, Search, Settings, Sun, Moon, LogOut, GraduationCap, Menu, X } from 'lucide-react'
+import { LayoutDashboard, BookText, Zap, ScrollText, Search, Settings, Sun, Moon, LogOut, Menu, X } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
+import Logo from './Logo'
 
 const NAV_ITEMS = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Overview'     },
@@ -32,16 +33,7 @@ export default function Navbar() {
 
       {/* Left: Brand Logo & Title */}
       <NavLink to="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 34, height: 34,
-          borderRadius: 10,
-          background: 'var(--accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(201, 81, 74, 0.3)',
-          flexShrink: 0,
-        }}>
-          <GraduationCap size={19} style={{ color: '#fff' }} />
-        </div>
+        <Logo size={34} />
 
         <div className="app-brand-copy">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -8,6 +8,7 @@ import {
   Eye, EyeOff, Palette, Info
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Logo from '../components/Logo'
 
 const TABS = [
   { id: 'profile',   icon: User,     label: 'Profile'            },
@@ -42,12 +43,10 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { toast.error('Name cannot be empty.'); return }
-    if (!email.trim()) { toast.error('Email address cannot be empty.'); return }
     setSavingProfile(true)
     try {
       const { data } = await authService.updateProfile({
         full_name: name.trim(),
-        email: email.trim(),
         field: field.trim(),
       })
       updateUser(data)
@@ -138,7 +137,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <Label><Mail size={9} style={{ display: 'inline', marginRight: 5 }} />Email Address</Label>
-                <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input className="input" type="email" value={email} disabled title="Your email is your login and cannot be changed here" />
               </div>
               <div>
                 <Label><GraduationCap size={9} style={{ display: 'inline', marginRight: 5 }} />Field</Label>
@@ -260,15 +259,7 @@ export default function SettingsPage() {
             
             {/* Header Box */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: 11,
-                background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', flexShrink: 0,
-                boxShadow: '0 4px 14px var(--accent-dim)'
-              }}>
-                <GraduationCap size={24} />
-              </div>
+              <Logo size={44} />
               <div>
                 <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.2 }}>
                   About

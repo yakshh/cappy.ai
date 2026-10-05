@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, Sparkles, GraduationCap } from 'lucide-react'
+import { Eye, EyeOff, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Logo from '../components/Logo'
 
 export default function LoginPage() {
   const { login, loading } = useAuth()
@@ -48,11 +49,8 @@ export default function LoginPage() {
               position: 'absolute', inset: 0, background: 'var(--accent)', borderRadius: 12,
               transform: 'rotate(8deg)', opacity: 0.35
             }} />
-            <div style={{
-              position: 'absolute', inset: 3, background: 'var(--accent)', borderRadius: 9,
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <GraduationCap size={22} style={{ color: '#fff' }} />
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <Logo size={48} />
             </div>
           </div>
           <h1 className="font-display" style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>

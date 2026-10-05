@@ -1,118 +1,113 @@
 # cappy.ai
 
-cappy.ai is an intelligent Retrieval-Augmented Generation (RAG) platform for study materials. It processes PDF notes, generates embeddings, and enables AI-assisted learning through document summaries, adaptive MCQs, 3D flashcards, semantic search, and university exam papers with step-by-step model solutions.
+A study assistant that runs entirely on Firebase's free plan. Upload your PDF notes, then summarise them, quiz yourself, search them, generate exam papers and solve them.
 
 ---
 
-## Key Features
+## Features
 
-- **Document Management**: Drag-and-drop PDF ingestion, chunked upload for serverless environments, text extraction, and category organization.
-- **RAG Summaries**: Grounded note summarization with customizable styles (Overview, Detailed, Bullets) and focus topics, with direct `.txt` export.
-- **Quiz & Flashcards**: Adaptive multiple-choice quizzes with explanations, interactive 3D flashcards, and instant `.txt` export.
-- **Exam Paper & Solver**: Generates 70-mark university question papers and step-by-step solutions with direct PDF export.
-- **Semantic Search**: Vector similarity search over indexed study materials with accurate match relevance scoring and source citations.
-- **User Profiles & Custom Themes**: Customizable field/department selection, dark mode aesthetics, and color themes.
-
----
-
-## Tech Stack
-
-- **Frontend**: React 18, Vite, React Router v6, Vanilla CSS / Tailwind CSS v3, Framer Motion, Lucide React, html2pdf.js, Axios.
-- **Backend**: Python 3.10+, FastAPI, PostgreSQL (Neon) / SQLite, SQLAlchemy, ChromaDB, PyPDF2, pdfplumber.
-- **LLM Engine**: Multi-provider fallback chain (Groq Cloud `llama-3.3-70b-versatile` & Google Gemini `gemini-1.5-flash`).
+| Feature | What it does |
+| :--- | :--- |
+| Documents | Upload PDFs. Text is read in your browser, scanned pages go through Gemini vision |
+| Summaries | Short, detailed or bullet summaries, optionally about one topic |
+| Quiz and flashcards | Multiple-choice quizzes and flip cards |
+| Exam papers | Generate a 70-mark paper, or upload one and get model answers |
+| Deep search | Keyword search across all your notes with a relevance score |
 
 ---
 
-## Repository Structure
+## How it is built
+
+| Part | Technology |
+| :--- | :--- |
+| Website | React 18, Vite, React Router, Tailwind, Lucide icons |
+| Login | Firebase Authentication (email and password) |
+| Database | Cloud Firestore |
+| AI | Gemini through Firebase AI Logic |
+| PDF reading | pdf.js in the browser |
+| Hosting | Firebase Hosting |
+
+There is no server. The browser talks to Firebase directly, and Firestore security rules make sure each person can only see their own data.
+
+---
+
+## Project layout
 
 ```text
 cappy.ai/
-├── api/
-│   └── index.py        # Vercel serverless entry point
-├── backend/
-│   ├── app.py          # FastAPI entry point & CORS configuration
-│   ├── auth.py         # JWT authentication & password hashing
-│   ├── config.py       # Application settings & environment variables
-│   ├── database.py     # Database session manager & dynamic schema migrations
-│   ├── models/         # SQLAlchemy ORM models (User, Document, DocumentChunk, Conversation)
-│   ├── rag/            # Vector store, hybrid relevance search & RAG generation logic
-│   ├── routes/         # API routes (Auth, Documents, Summary, Quiz, Sample Paper, Search, Users)
-│   ├── services/       # PDF parsing & text chunking services
-│   └── requirements.txt
-├── frontend/
-│   ├── package.json
-│   ├── vite.config.js
-│   └── src/
-│       ├── App.jsx     # Application routing
-│       ├── components/ # Navbar, Sidebar, DocumentCard, FileUpload, Category selector
-│       ├── pages/      # Dashboard, Summary, Quiz, SamplePaper, Search, Settings, Login, Register
-│       └── services/   # Axios API client modules
-└── vercel.json         # Vercel serverless routing configuration
+├── firebase.json          Hosting and Firestore settings
+├── firestore.rules        Who can read and write what
+├── .firebaserc            Which Firebase project to use
+└── frontend/
+    ├── .env.local         Your Firebase keys (not in git)
+    └── src/
+        ├── firebase.js    Connects to Firebase
+        ├── services/      Everything that talks to Firebase and Gemini
+        ├── context/       Login state and theme
+        ├── components/    Navbar, Sidebar, upload, logo, ...
+        └── pages/         Dashboard, Chat, Summary, Quiz, ...
 ```
 
 ---
 
-## Quick Start
+## Run it on your computer
 
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
+You need Node.js 18 or newer.
 
-### Setup & Launch
+1. Copy `frontend/.env.example` to `frontend/.env.local` and fill in the values from Firebase console, Project settings, Your apps.
+2. Start the site:
 
-1. **Clone Repository**:
    ```bash
-   git clone https://github.com/yakshh/cappy.ai.git
-   cd cappy.ai
-   ```
-
-2. **Backend Setup**:
-   ```bash
-   cd backend
-   python -m venv venv
-   .\venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-   Create a `.env` file in `backend/`:
-   ```env
-   APP_NAME="cappy.ai"
-   SECRET_KEY="your-secret-key"
-   DATABASE_URL="postgresql://user:pass@ep-host.neon.tech/neondb?sslmode=require"
-   GROQ_API_KEY="your-primary-groq-key"
-   GROQ_API_KEY_2="your-fallback-groq-key"
-   GEMINI_API_KEY="your-primary-gemini-key"
-   GEMINI_API_KEY_2="your-fallback-gemini-key"
-   ```
-
-   Start server:
-   ```bash
-   uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-3. **Frontend Setup**:
-   ```bash
-   cd ../frontend
+   cd frontend
    npm install
    npm run dev
    ```
 
+3. Open http://localhost:6969
+
 ---
 
-## API Routes Summary
+## Deploy
 
-| Endpoint | Method | Description |
+```bash
+cd frontend && npm run build && cd ..
+firebase deploy
+```
+
+This publishes the website and the Firestore rules. Your site is then live at `https://cappy-ai-4a68b.web.app`.
+
+To use your own domain, add it in Firebase console, Hosting, Add custom domain, then create the DNS records it shows you.
+
+---
+
+## One-time Firebase setup
+
+| Step | Where in Firebase console |
+| :--- | :--- |
+| Turn on login | Build, Authentication, Sign-in method, Email/Password |
+| Turn on AI | Build, AI Logic, choose Gemini Developer API |
+| Create database | Build, Firestore Database, production mode |
+| Protect the AI | Build, App Check, see below |
+
+### App Check
+
+App Check makes sure only your website can use your free Gemini quota.
+
+1. Create a reCAPTCHA v3 key at https://www.google.com/recaptcha/admin. Add `localhost`, `cappy.ai` and `cappy-ai-4a68b.web.app` as domains.
+2. In Firebase console, App Check, Apps, open your web app and register with reCAPTCHA v3 using the secret key.
+3. Put the site key in `frontend/.env.local` as `VITE_RECAPTCHA_SITE_KEY` and redeploy.
+4. In App Check, APIs, turn on enforcement for Firebase AI Logic.
+
+For local development, the first run prints a debug token in the browser console. Add it under App Check, Apps, Manage debug tokens.
+
+---
+
+## Free plan limits
+
+| Limit | Value | Effect |
 | :--- | :--- | :--- |
-| `/api/auth/register` | `POST` | User registration |
-| `/api/auth/login` | `POST` | User login & JWT token issuance |
-| `/api/documents/upload` | `POST` | PDF document upload & indexing |
-| `/api/documents/upload-chunk` | `POST` | Chunked upload for large PDF files |
-| `/api/documents/` | `GET` | List user documents & categories |
-| `/api/documents/{id}` | `DELETE` | Delete document & associated chunks |
-| `/api/documents/{id}/category` | `PATCH` | Update document subject category |
-| `/api/summary/` | `POST` | Generate RAG summary |
-| `/api/quiz/` | `POST` | Generate quiz or 3D flashcards |
-| `/api/sample-paper/` | `POST` | Generate 70-mark university question paper |
-| `/api/sample-paper/solve-upload` | `POST` | Solve uploaded exam paper & generate model solutions |
-| `/api/search/` | `POST` | Perform semantic & hybrid relevance search |
-| `/api/users/me` | `GET / PATCH` | Manage user profile and stream details |
+| Firestore reads | 50,000 per day | Notes are stored in blocks, so one search costs a few reads |
+| Firestore writes | 20,000 per day | An upload uses only a handful |
+| Firestore storage | 1 GiB | Only text is stored, never the PDF |
+| Gemini requests | Shared by all users | If it runs out, the app asks people to retry in a minute |
+| Exam-paper solves | 7 per person per day | Enforced by the Firestore rules |

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, UserPlus, GraduationCap } from 'lucide-react'
+import { Eye, EyeOff, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Logo from '../components/Logo'
 
 export default function RegisterPage() {
   const { register, loading } = useAuth()
@@ -50,11 +51,8 @@ export default function RegisterPage() {
               position: 'absolute', inset: 0, background: 'var(--accent)', borderRadius: 12,
               transform: 'rotate(8deg)', opacity: 0.35
             }} />
-            <div style={{
-              position: 'absolute', inset: 3, background: 'var(--accent)', borderRadius: 9,
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <GraduationCap size={22} style={{ color: '#fff' }} />
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <Logo size={48} />
             </div>
           </div>
           <h1 className="font-display" style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>

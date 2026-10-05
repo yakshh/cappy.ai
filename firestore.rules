@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Every document lives under users/{uid}/..., and only that signed-in user can touch it.
+// There is no server, so these rules are the security boundary.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Today's date as YYYY-MM-DD in UTC, used as the id of the daily usage document.
+    function today() {
+      return string(request.time.year()) + '-'
+        + (request.time.month() < 10 ? '0' : '') + string(request.time.month()) + '-'
+        + (request.time.day() < 10 ? '0' : '') + string(request.time.day());
+    }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /documents/{docId} {
+        allow read, write: if isOwner(uid);
+
+        match /blocks/{blockId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      match /conversations/{convId} {
+        allow read, write: if isOwner(uid);
+
+        match /messages/{messageId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      match /papers/{paperId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Paper-solve quota: one document per day, and the counter may only go up by 1, max 7.
+      match /usage/{day} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && day == today()
+          && request.resource.data.keys().hasOnly(['solve_count'])
+          && request.resource.data.solve_count == 1;
+        allow update: if isOwner(uid)
+          && day == today()
+          && request.resource.data.keys().hasOnly(['solve_count'])
+          && request.resource.data.solve_count == resource.data.solve_count + 1
+          && request.resource.data.solve_count <= 7;
+      }
+    }
+  }
+}

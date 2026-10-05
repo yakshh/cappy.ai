@@ -3,9 +3,10 @@ import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, MessageSquare, FileText, Zap,
   BookOpen, CreditCard, Search, User, Settings,
-  LogOut, GraduationCap, ChevronLeft, ChevronRight, FileSpreadsheet
+  LogOut, ChevronLeft, ChevronRight, FileSpreadsheet
 } from 'lucide-react'
 import { useState } from 'react'
+import Logo from './Logo'
 
 const navItems = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard'            },
@@ -37,9 +38,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-white/5">
-        <div className="w-8 h-8 rounded-xl bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-brand">
-          <GraduationCap size={18} className="text-white" />
-        </div>
+        <Logo size={32} />
         {!collapsed && (
           <span className="font-bold text-sm text-white truncate">
             cappy<span className="text-brand-400">.ai</span>

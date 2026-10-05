@@ -1,87 +1,64 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authService } from '../services'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../firebase'
+import { authService, loadProfile } from '../services'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const token = localStorage.getItem('token')
-      const stored = localStorage.getItem('user')
-      if (!token) return null
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  })
+  const [user, setUser] = useState(null)
+  const [initializing, setInitializing] = useState(true) // true until Firebase reports the saved session
   const [loading, setLoading] = useState(false)
+  const signingIn = useRef(false) // login/register set the user themselves
 
-  // Verify auth session on mount
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      authService.getMe()
-        .then(({ data }) => {
-          if (data) {
-            setUser(data)
-            localStorage.setItem('user', JSON.stringify(data))
-          }
-        })
-        .catch(() => {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          setUser(null)
-        })
-    } else {
-      localStorage.removeItem('user')
-      setUser(null)
-    }
+    return onAuthStateChanged(auth, async (fbUser) => {
+      if (signingIn.current) return
+      try {
+        setUser(fbUser ? await loadProfile(fbUser) : null)
+      } catch {
+        setUser(null)
+      } finally {
+        setInitializing(false)
+      }
+    })
   }, [])
 
-  const login = useCallback(async (email, password) => {
+  const authenticate = useCallback(async (request, failureMessage) => {
     setLoading(true)
+    signingIn.current = true
     try {
-      const { data } = await authService.login({ email, password })
-      localStorage.setItem('token', data.access_token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      const { data } = await request()
       setUser(data.user)
       return { success: true }
     } catch (err) {
-      return { success: false, error: err.response?.data?.detail || 'Login failed' }
+      return { success: false, error: err.response?.data?.detail || failureMessage }
     } finally {
+      signingIn.current = false
       setLoading(false)
     }
   }, [])
 
-  const register = useCallback(async (fullName, email, password, field) => {
-    setLoading(true)
-    try {
-      const { data } = await authService.register({ full_name: fullName, email, password, field })
-      localStorage.setItem('token', data.access_token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      setUser(data.user)
-      return { success: true }
-    } catch (err) {
-      return { success: false, error: err.response?.data?.detail || 'Registration failed' }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const login = useCallback(
+    (email, password) => authenticate(() => authService.login({ email, password }), 'Login failed'),
+    [authenticate]
+  )
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setUser(null)
-  }, [])
+  const register = useCallback(
+    (fullName, email, password, field) =>
+      authenticate(
+        () => authService.register({ full_name: fullName, email, password, field }),
+        'Registration failed'
+      ),
+    [authenticate]
+  )
 
-  const updateUser = useCallback((updatedData) => {
-    const newUser = { ...user, ...updatedData }
-    localStorage.setItem('user', JSON.stringify(newUser))
-    setUser(newUser)
-  }, [user])
+  const logout = useCallback(() => authService.logout(), [])
+
+  const updateUser = useCallback((changes) => setUser((prev) => ({ ...prev, ...changes })), [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, initializing, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

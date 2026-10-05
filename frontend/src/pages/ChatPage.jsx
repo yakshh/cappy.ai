@@ -5,11 +5,11 @@ import SourceCitationCard from '../components/SourceCitationCard'
 import TypingIndicator from '../components/TypingIndicator'
 import LoadingSpinner from '../components/LoadingSpinner'
 import {
-  Send, MessageSquare, Plus, Trash2, GraduationCap,
-  ChevronDown, FileText
+  Send, MessageSquare, Plus, Trash2, ChevronDown, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
+import Logo from '../components/Logo'
 
 function ConversationItem({ conv, isActive, onClick, onDelete }) {
   return (
@@ -37,9 +37,7 @@ function ChatMessage({ msg }) {
   return (
     <div className={`flex gap-3 animate-fade-in ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-xl bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-brand mt-0.5">
-          <GraduationCap size={16} className="text-white" />
-        </div>
+        <div className="mt-0.5 flex-shrink-0"><Logo size={32} /></div>
       )}
       <div className={`max-w-[75%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
         <div
@@ -212,7 +210,7 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
         <div className="px-6 py-3 border-b border-white/5 flex items-center gap-3">
-          <GraduationCap size={18} className="text-brand-400" />
+          <Logo size={22} />
           <span className="text-sm font-medium text-white">cappy.ai Chat</span>
           <div className="flex-1" />
 
@@ -262,9 +260,7 @@ export default function ChatPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-brand shadow-brand flex items-center justify-center mb-6 animate-float">
-                <GraduationCap size={36} className="text-white" />
-              </div>
+              <div className="mb-6 animate-float"><Logo size={80} /></div>
               <h2 className="text-xl font-bold text-white mb-2">Ask anything about your notes</h2>
               <p className="text-slate-400 text-sm max-w-sm">
                 Upload your PDFs from the Dashboard, then ask questions. I'll answer only from your documents.
@@ -291,9 +287,7 @@ export default function ChatPage() {
 
           {sending && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-brand">
-                <GraduationCap size={16} className="text-white" />
-              </div>
+              <Logo size={32} />
               <div className="glass rounded-2xl rounded-bl-md px-2 py-1">
                 <TypingIndicator />
               </div>

@@ -1,25 +1,21 @@
 # Dependencies
 node_modules/
-backend/venv/
-backend/__pycache__/
-*.pyc
-*.pyo
 
-# Local Environment & Secrets
+# Local environment & secrets
 .env
-backend/.env
+.env.local
+*-firebase-adminsdk-*.json
 
-# Local Database & Storage
-backend/uploads/
-backend/chroma_db/
-backend/cappy.db
-*.db
-
-# Build Artifacts
-frontend/dist/
+# Build output
 dist/
 
-# IDE & System
+# Firebase local state and logs
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# IDE & system
 .vscode/
 .DS_Store
 Thumbs.db
